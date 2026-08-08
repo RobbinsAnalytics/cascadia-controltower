@@ -1,0 +1,163 @@
+{
+  "purpose": "Calibration envelope for the Cascadia Control Tower generator. Derived ratios only \u2014 this file deliberately carries no entity name, ticker, CIK, accession number or absolute dollar figure.",
+  "what_the_filer_does_not_tag": {
+    "net_sales": "NOT separately tagged after FY2017. The filer tags total revenue only, which includes credit and other revenue alongside merchandise sales. Every 'revenue' ratio in this file is therefore against TOTAL revenue, not net sales. The two move differently: total revenue rose 2.2% in the final reported year while net sales fell, because the non-merchandise components grew. Not reconciled here, because reconciling it would require reading the 10-K face statements, and the difference is disclosed instead.",
+    "cost_of_sales": "NOT tagged after FY2019 \u2014 GrossProfit ends there and no cost of sales concept replaces it. Gross margin is therefore unavailable for recent years and is reported as missing, not estimated from an older year."
+  },
+  "attested_inputs": {
+    "note": "Calibration points taken from the filer's public reporting that are NOT derivable from XBRL company facts. Flagged as attested rather than verified. One of them \u2014 the inventory change \u2014 IS independently derivable here and came back at exactly the attested value, which is the only cross-check available on this set.",
+    "net_sales_yoy_final_year": {
+      "value": -0.021,
+      "status": "attested",
+      "why": "net sales not separately tagged; see above"
+    },
+    "inventory_yoy_final_year": {
+      "value": 0.114,
+      "status": "VERIFIED \u2014 matches XBRL derivation",
+      "why": "independently derived from InventoryNet in this run"
+    },
+    "digital_share_of_sales": {
+      "value": 0.36,
+      "status": "attested",
+      "why": "channel mix is an MD&A disclosure, not an XBRL concept"
+    }
+  },
+  "provenance": "Derived from one real department-store operator's audited annual filings, read from SEC XBRL company facts. The filer is not named here and is not named anywhere in this repository. See governance/naming_policy.md, which records that this one source breaks the pull-once-freeze-commit principle and why the naming rule outranks it.",
+  "reproducibility": "ATTESTED, NOT REPRODUCIBLE. src/derive_calibration.py contains the full derivation and can be re-run by anyone holding the identifier, which is supplied out of band. The three realism audits do not depend on this file; they run against the Census series and the Macy's / Kohl's / Dillard's bundles, which are frozen and committed in full.",
+  "window_note": "The filer deregistered in mid-2025 and its final reported fiscal year has already been filed. This envelope cannot drift, because there will be no later data.",
+  "derivation": {
+    "revenue": "RevenueFromContractWithCustomerExcludingAssessedTax > Revenues > SalesRevenueNet",
+    "cost_of_sales": "CostOfGoodsAndServicesSold > CostOfRevenue > CostOfGoodsSold",
+    "sga": "SellingGeneralAndAdministrativeExpense > GeneralAndAdministrativeExpense",
+    "inventory": "InventoryNet > RetailRelatedInventoryMerchandise > InventoryFinishedGoods"
+  },
+  "revenue_concept": "TOTAL revenue as filed, not net sales \u2014 see what_the_filer_does_not_tag",
+  "fiscal_years": [
+    {
+      "fiscal_year": 2011,
+      "inventory_to_revenue": 0.10571,
+      "sga_to_revenue": 0.27799,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": 0.11959,
+      "inventory_yoy": 0.17503
+    },
+    {
+      "fiscal_year": 2012,
+      "inventory_to_revenue": 0.11208,
+      "sga_to_revenue": 0.27666,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": 0.11731,
+      "inventory_yoy": 0.18467
+    },
+    {
+      "fiscal_year": 2013,
+      "inventory_to_revenue": 0.12209,
+      "sga_to_revenue": 0.27536,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": 0.03346,
+      "inventory_yoy": 0.12574
+    },
+    {
+      "fiscal_year": 2014,
+      "inventory_to_revenue": 0.12831,
+      "sga_to_revenue": 0.27965,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": 0.07703,
+      "inventory_yoy": 0.13194
+    },
+    {
+      "fiscal_year": 2015,
+      "inventory_to_revenue": 0.13472,
+      "sga_to_revenue": 0.2887,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": 0.06893,
+      "inventory_yoy": 0.12233
+    },
+    {
+      "fiscal_year": 2016,
+      "inventory_to_revenue": 0.12848,
+      "sga_to_revenue": 0.2924,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": 0.02217,
+      "inventory_yoy": -0.02519
+    },
+    {
+      "fiscal_year": 2017,
+      "inventory_to_revenue": 0.13096,
+      "sga_to_revenue": 0.3012,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": 0.04886,
+      "inventory_yoy": 0.06909
+    },
+    {
+      "fiscal_year": 2018,
+      "inventory_to_revenue": 0.12472,
+      "sga_to_revenue": 0.30694,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": 0.02468,
+      "inventory_yoy": -0.02417
+    },
+    {
+      "fiscal_year": 2019,
+      "inventory_to_revenue": 0.12368,
+      "sga_to_revenue": 0.30971,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": -0.02119,
+      "inventory_yoy": -0.02932
+    },
+    {
+      "fiscal_year": 2020,
+      "inventory_to_revenue": 0.17387,
+      "sga_to_revenue": 0.38843,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": -0.30978,
+      "inventory_yoy": -0.02969
+    },
+    {
+      "fiscal_year": 2021,
+      "inventory_to_revenue": 0.15478,
+      "sga_to_revenue": 0.33491,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": 0.38021,
+      "inventory_yoy": 0.22866
+    },
+    {
+      "fiscal_year": 2022,
+      "inventory_to_revenue": 0.12498,
+      "sga_to_revenue": 0.32492,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": 0.0501,
+      "inventory_yoy": -0.15203
+    },
+    {
+      "fiscal_year": 2023,
+      "inventory_to_revenue": 0.1285,
+      "sga_to_revenue": 0.33043,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": -0.0539,
+      "inventory_yoy": -0.02731
+    },
+    {
+      "fiscal_year": 2024,
+      "inventory_to_revenue": 0.14012,
+      "sga_to_revenue": 0.3413,
+      "cost_of_sales_to_revenue": null,
+      "gross_margin": null,
+      "revenue_yoy": 0.02198,
+      "inventory_yoy": 0.11441
+    }
+  ]
+}
