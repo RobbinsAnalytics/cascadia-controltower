@@ -392,11 +392,15 @@ def run_suite(con, m, anchors):
     # --- 11 reproducibility ------------------------------------------------
     run = json.loads((GOV_DIR / "generator_run.json").read_text(encoding="utf-8"))
     import hashlib
+    # Hash exactly the tables the generator recorded, not "whatever exists".
+    # dbt writes its models into the same file, so an unpinned hash would
+    # report a reproducibility failure that was really just the warehouse
+    # layer having been rebuilt.
     h = hashlib.sha256()
-    for table in sorted(t[0] for t in con.execute("SHOW TABLES").fetchall()):
+    for table in run["hashed_tables"]:
         n, s = con.execute(
             f"SELECT COUNT(*), COALESCE(SUM(hash(to_json(t))::HUGEINT), 0) "
-            f"FROM {table} t").fetchone()
+            f"FROM main.{table} t").fetchone()
         h.update(f"{table}:{n}:{s}".encode())
     digest = h.hexdigest()
     record("11", "Database content hash matches the recorded run",

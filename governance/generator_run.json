@@ -5,6 +5,19 @@
     "2026-07-31"
   ],
   "content_sha256": "6592611ba17db74bc0201f297742f9fa562ef1304dbdb70e43136d59940aec17",
+  "hashed_tables": [
+    "dim_banner",
+    "dim_date",
+    "dim_node",
+    "dim_sku",
+    "dim_style",
+    "fact_inventory_month",
+    "fact_labor_day",
+    "fact_order",
+    "fact_order_line",
+    "fact_receipt",
+    "fact_shipment"
+  ],
   "realized": {
     "unit_fill": 0.9425178779084638,
     "line_fill": 0.9160420103482318,

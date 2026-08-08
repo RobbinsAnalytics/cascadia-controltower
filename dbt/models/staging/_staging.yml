@@ -1,0 +1,113 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: One row per order, with calendar and derived economics.
+    columns:
+      - name: order_id
+        tests: [not_null, unique]
+      - name: classification
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['single_node', 'split', 'not_shipped']
+      - name: banner
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: source('controltower', 'dim_banner')
+                field: banner_key
+      - name: units_ordered
+        tests: [not_null]
+      - name: split_premium
+        tests: [not_null]
+
+  - name: stg_order_lines
+    description: One row per order line, with the style attributes behind failures.
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: style_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: source('controltower', 'dim_style')
+                field: style_key
+      - name: line_state
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['zero', 'full', 'partial']
+      - name: qty_ordered
+        tests: [not_null]
+      - name: velocity_band
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['A', 'B', 'C']
+
+  - name: stg_shipments
+    columns:
+      - name: shipment_id
+        tests: [not_null, unique]
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: node_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: source('controltower', 'dim_node')
+                field: node_key
+      - name: units
+        tests: [not_null]
+
+  - name: stg_inventory
+    columns:
+      - name: sku_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: source('controltower', 'dim_sku')
+                field: sku_key
+      - name: year_month
+        tests: [not_null]
+      - name: conservation_error
+        description: >
+          Must be zero on every row. The singular test
+          assert_inventory_conservation is the one that fails the build.
+        tests: [not_null]
+
+  - name: stg_labor
+    columns:
+      - name: function
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['receiving', 'putaway', 'picking', 'packing', 'shipping']
+      - name: hours
+        tests: [not_null]
+
+  - name: stg_receipts
+    columns:
+      - name: receipt_id
+        tests: [not_null, unique]
+      - name: dock_to_stock_hours
+        tests: [not_null]

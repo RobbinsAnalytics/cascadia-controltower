@@ -95,10 +95,53 @@ validate.py           the PASS/FAIL suite, including the three realism audits
 
 ## Reproducing
 
+Run in this order. Only the first step touches the network, and it only needs
+running once — `data/raw/` is committed.
+
 ```
-python src/ingest_anchors.py     # pull and freeze the anchors (network, once)
-python src/conform_anchors.py    # govern them into data/clean (no network)
+python src/ingest_anchors.py                  # pull and freeze the anchors
+python src/conform_anchors.py                 # govern them into data/clean
+python src/generate.py                        # build the star schema
+python validate.py --prove-failable           # 12 checks + audit failability
+cd dbt && dbt build --profiles-dir . && cd .. # warehouse layer + 69 tests
+python src/build_metric_register.py           # register, from dbt metadata
+python src/build_metric_register.py --check    # fail if it has drifted
 ```
+
+## The metric register is generated, not written
+
+Every entry in `governance/metric_register.md` comes from a `meta:` block on a
+column in `dbt/models/marts/_marts.yml` — the same file that defines that
+column's tests. Change a definition, rebuild, and the register and the page
+change with it.
+
+`build_metric_register.py --check` regenerates in memory and compares against
+what is committed, so a definition cannot quietly drift from the model that
+computes it. **Eleven metrics: eight certified, three exploratory.**
+
+Certification is not a ranking. An exploratory metric is not a bad metric; it is
+one the business has agreed not to run on. Retaining the other definitions and
+labelling them is the governance act — deleting them would move the
+disagreement rather than resolve it.
+
+## The warehouse layer
+
+dbt Core 1.12 on DuckDB: 6 staging views, 9 marts, **69 data tests, all
+passing.** The tests are a deliverable, not scaffolding — several encode
+invariants that would otherwise be assumptions:
+
+- inventory conservation on every SKU-node-month, no tolerance
+- the stored classification must be re-derivable from shipments alone
+- order fill can never exceed line fill — but unit-versus-line is deliberately
+  **not** asserted, because that ordering depends on where shortfalls land and
+  asserting it would encode an assumption as an invariant
+- the single-node counterfactual can never beat what the network actually
+  shipped
+- split premium is never negative
+
+BigQuery is a gated Phase 2. When the GCP project exists it becomes a second
+output in `profiles.yml` and the models are unchanged — which is the point of
+keeping transformation in dbt rather than in the page build.
 
 ## Build state
 
@@ -108,7 +151,7 @@ python src/conform_anchors.py    # govern them into data/clean (no network)
 | Anchor freeze and conform | Complete |
 | Generator and star schema | Complete — `governance/generator_assumptions.md` |
 | `validate.py` and realism audits | Complete — **12/12 green** |
-| dbt on DuckDB | Not started |
+| dbt on DuckDB + metric register | Complete — **69/69 tests green**, 11 metrics |
 | Static ECharts page | Not started |
 | Reading panel | Not started |
 

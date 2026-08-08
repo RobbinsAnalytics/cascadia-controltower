@@ -142,7 +142,7 @@ computed 6592611ba17db74bc0201f297742f9fa562ef1304dbdb70e43136d59940aec17
 **PASS**
 
 ```
-scanned 22 text files
+scanned 52 text files
 unexpected CIK references: 0
 strict token scan: SKIPPED - CT_FORBIDDEN_TOKENS not set
 ```
@@ -169,23 +169,4 @@ SG&A band rather than matching a reported figure.
 Both are weaker claims than a match. Both can still fail in either
 direction, and the page states the limitation rather than implying a
 precision the disclosure does not support.
-
----
-
-## Proof the realism audits can fail
-
-An audit that cannot fail is not an audit. Each audit is a pure
-function of measured numbers, so it can be handed deliberately wrong
-values. Every scenario below **must** trip its audit.
-
-| Audit | Scenario | Result |
-|---|---|---|
-| A | inventory inflated 5x (above the Census band) | tripped |
-| A | seasonal shape flattened | tripped |
-| B | DC cost inflated 6x (above peer SG&A) | tripped |
-| B | DC cost cut to a rounding error | tripped |
-| C | splits made uniform across velocity bands | tripped |
-| C | concentration reversed (fast movers split most) | tripped |
-
-**All scenarios tripped.**
 

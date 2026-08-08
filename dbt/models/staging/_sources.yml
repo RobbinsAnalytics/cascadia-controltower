@@ -1,0 +1,34 @@
+version: 2
+
+sources:
+  - name: controltower
+    description: >
+      The frozen star schema written by src/generate.py. Seeded and
+      reproducible: the same seed produces the same content hash, which
+      validate.py re-checks. dbt never writes to these tables.
+    schema: main
+    tables:
+      - name: dim_date
+      - name: dim_style
+        description: A style is what a customer orders. Sizes hang off it.
+      - name: dim_sku
+        description: >
+          Style x size. This is the grain inventory is held at, and holding it
+          here rather than at style level is what lets unit fill and line fill
+          differ at all.
+      - name: dim_node
+      - name: dim_banner
+      - name: fact_order
+        description: One row per order, with its fulfillment classification.
+      - name: fact_order_line
+        description: >
+          One row per order line. A line is a style and a quantity; the units
+          spread across the size run at allocation time.
+      - name: fact_shipment
+        description: One row per order per node. Two nodes means two parcels.
+      - name: fact_receipt
+      - name: fact_inventory_month
+        description: >
+          Accumulating monthly ledger per SKU per node. Conservation is exact:
+          opening + receipts - shipped - adjustments = closing.
+      - name: fact_labor_day

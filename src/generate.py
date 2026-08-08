@@ -949,7 +949,7 @@ def load_wages():
 # 7 · WRITE
 # ===========================================================================
 
-def content_hash(con) -> str:
+def content_hash(con, tables=None) -> str:
     """Hash the DATA, not the file.
 
     Storage-engine internals are not the reproducibility claim; the contents
@@ -964,11 +964,13 @@ def content_hash(con) -> str:
     two million rows through Python, which is what made the first version of
     this function unusable.
     """
+    if tables is None:
+        tables = sorted(t[0] for t in con.execute("SHOW TABLES").fetchall())
     h = hashlib.sha256()
-    for table in sorted(t[0] for t in con.execute("SHOW TABLES").fetchall()):
+    for table in tables:
         n, s = con.execute(
             f"SELECT COUNT(*), COALESCE(SUM(hash(to_json(t))::HUGEINT), 0) "
-            f"FROM {table} t").fetchone()
+            f"FROM main.{table} t").fetchone()
         h.update(f"{table}:{n}:{s}".encode())
     return h.hexdigest()
 
@@ -1076,7 +1078,12 @@ def main() -> None:
                 "split_rate": r[3], "counterfactual_unit_fill": r[4],
                 "orders": r[5]}
 
-    digest = content_hash(con)
+    # Hash exactly the tables this script created. dbt later writes its own
+    # models into the same file, and a hash taken over "whatever tables exist"
+    # would then change every time the warehouse layer was rebuilt — reporting
+    # a reproducibility failure that was really just dbt having run.
+    base_tables = sorted(t[0] for t in con.execute("SHOW TABLES").fetchall())
+    digest = content_hash(con, base_tables)
     con.close()
 
     print("\n  realized vs target")
@@ -1093,6 +1100,7 @@ def main() -> None:
         "seed": SEED,
         "period": [str(PARAMS["period_start"]), str(PARAMS["period_end"])],
         "content_sha256": digest,
+        "hashed_tables": base_tables,
         "realized": realized,
         "targets": PARAMS["targets"],
         "row_counts": {"fact_order": len(f_orders),

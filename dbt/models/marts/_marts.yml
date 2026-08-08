@@ -1,0 +1,347 @@
+version: 2
+
+# ---------------------------------------------------------------------------
+# THIS FILE IS THE METRIC REGISTER.
+#
+# The register published on the page is generated from these `meta` blocks by
+# src/build_metric_register.py, which reads dbt's own manifest. Nothing is
+# typed twice. Change a definition here, rebuild, and the page changes with it;
+# `build_metric_register.py --check` fails the build if the committed register
+# has drifted from the models.
+#
+# A hand-typed register is documentation. A generated one is engineering, and
+# it is the difference between a governance artifact that is true and one that
+# was true on the day someone wrote it.
+# ---------------------------------------------------------------------------
+
+models:
+  - name: fct_fill_rate_monthly
+    description: >
+      The three fill rates by month and banner, each computed from the base
+      quantities and never from another rate. Grain: year_month x banner.
+    columns:
+      - name: year_month
+        tests: [not_null]
+      - name: banner
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['premium', 'offprice']
+
+      - name: order_fill
+        description: Orders where every line shipped complete, over all orders.
+        tests: [not_null]
+        meta:
+          metric: true
+          metric_name: Order fill
+          tier: certified
+          grain: Order
+          owner: Fulfillment governance
+          definition: >
+            Orders in which every line shipped its full ordered quantity,
+            divided by all orders placed in the period, including orders that
+            shipped nothing.
+          lineage: fact_order_line.qty_ordered, fact_order_line.qty_shipped
+          version: "1.0"
+          version_history: >
+            1.0 (2026-08-08) certified at first publication. Chosen over line
+            and unit fill because it is the only one of the three that matches
+            what the customer experiences.
+          tier_reason: >
+            A customer whose three-line order arrives missing a line did not
+            receive 67% of an order; they received an incomplete order. Order
+            fill is the only definition that says so.
+
+      - name: line_fill
+        description: Order lines shipped complete, over all order lines.
+        tests: [not_null]
+        meta:
+          metric: true
+          metric_name: Line fill
+          tier: exploratory
+          grain: Order line
+          owner: Merchandising analytics
+          definition: >
+            Order lines that shipped their full ordered quantity, divided by
+            all order lines.
+          lineage: fact_order_line.qty_ordered, fact_order_line.qty_shipped
+          version: "1.0"
+          version_history: >
+            1.0 (2026-08-08) retained as exploratory at first publication.
+            Deliberately not retired.
+          tier_reason: >
+            Useful as an assortment-coverage diagnostic, and it is what the
+            merchant team has always read. Retaining it and labelling it is the
+            governance act; quietly deleting it would move the disagreement
+            rather than resolve it.
+
+      - name: unit_fill
+        description: Units shipped, over units ordered.
+        tests: [not_null]
+        meta:
+          metric: true
+          metric_name: Unit fill
+          tier: exploratory
+          grain: Unit
+          owner: Operations
+          definition: Units shipped divided by units ordered.
+          lineage: fact_order_line.qty_ordered, fact_order_line.qty_shipped
+          version: "1.0"
+          version_history: >
+            1.0 (2026-08-08) retained as exploratory at first publication.
+          tier_reason: >
+            The most forgiving of the three and therefore the one most often
+            quoted upward. Retained as a depth-of-stock diagnostic, explicitly
+            not as the service number.
+
+      - name: counterfactual_unit_fill
+        description: >
+          Unit fill the same demand would have achieved under a single-node-only
+          rule, evaluated against the inventory position before each real
+          allocation was committed.
+        tests: [not_null]
+        meta:
+          metric: true
+          metric_name: Counterfactual unit fill
+          tier: exploratory
+          grain: Unit
+          owner: Fulfillment governance
+          definition: >
+            Best units any single node could have shipped for each order,
+            divided by units ordered.
+          lineage: fact_order.counterfactual_units_single_node
+          version: "1.0"
+          version_history: "1.0 (2026-08-08) introduced with the module."
+          tier_reason: >
+            A modelled alternative history, not a measurement. It prices the
+            governance decision and must never be reported as achieved service.
+
+      - name: split_rate
+        description: Share of orders whose units shipped from more than one node.
+        tests: [not_null]
+        meta:
+          metric: true
+          metric_name: Split rate
+          tier: certified
+          grain: Order
+          owner: Network planning
+          definition: >
+            Orders whose shipped units came from more than one fulfillment
+            node, divided by all orders. Node count, not parcel count.
+          lineage: fact_order.classification, fact_shipment.node_key
+          version: "1.0"
+          version_history: >
+            1.0 (2026-08-08) certified on the by-node definition. The by-parcel
+            definition is retained as exploratory; see classification_rules.md.
+          tier_reason: >
+            Node count responds to the allocation decision under review. Parcel
+            count also responds to carton sizing and packaging rules, which are
+            a different problem with a different owner.
+
+  - name: fct_split_economics
+    description: >
+      Split economics by banner. The premium is measured incrementally against
+      what the same shipped units would have cost in one parcel.
+    columns:
+      - name: banner
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['premium', 'offprice']
+      - name: classification
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['single_node', 'split']
+
+      - name: cost_per_order
+        description: Parcel cost per shipped order.
+        tests: [not_null]
+        meta:
+          metric: true
+          metric_name: Cost per order
+          tier: certified
+          grain: Order
+          owner: Fulfillment finance
+          definition: >
+            Total parcel cost divided by shipped orders. Orders that shipped
+            nothing are excluded from both numerator and denominator.
+          lineage: fact_order.parcel_cost, fact_order.classification
+          version: "1.0"
+          version_history: >
+            1.0 (2026-08-08) certified with not-shipped orders excluded, stated
+            on the page next to the number.
+          tier_reason: >
+            An order with no parcel has no parcel cost. Including it would
+            divide real cost across unreal volume and quietly flatter the
+            figure.
+
+      - name: avg_split_premium
+        description: >
+          Mean incremental parcel cost of fragmenting an order, holding its
+          contents fixed.
+        tests: [not_null]
+        meta:
+          metric: true
+          metric_name: Split premium
+          tier: certified
+          grain: Order
+          owner: Fulfillment finance
+          definition: >
+            Actual parcel cost minus what the same shipped units would have
+            cost in a single parcel from the primary node.
+          lineage: fact_order.parcel_cost, fact_order.one_parcel_equivalent_cost
+          version: "1.0"
+          version_history: >
+            1.0 (2026-08-08) certified on the incremental definition after the
+            average-versus-average comparison was rejected.
+          tier_reason: >
+            Split orders are systematically larger baskets. Comparing the
+            average cost of split orders against the average cost of single-node
+            orders compares two different populations and flatters the split.
+
+  - name: fct_velocity_concentration
+    description: >
+      Shortfall and splitting by velocity band -- the evidence that both come
+      from one cause. Realism audit C tests this shape.
+    columns:
+      - name: velocity_band
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['A', 'B', 'C']
+      - name: pct_lines_multi_node
+        tests: [not_null]
+
+  - name: fct_split_threshold_curve
+    description: >
+      What a split-cost threshold would catch, what it would save, and what
+      fill it would cost. Exception counts fall monotonically as the threshold
+      rises; validate.py asserts it.
+    columns:
+      - name: threshold_usd
+        tests: [not_null]
+      - name: orders_above_threshold
+        tests: [not_null]
+
+  - name: fct_inventory_position
+    description: >
+      Monthly inventory at cost against sales at retail, in the form realism
+      audit A checks against the Census department-store series.
+    columns:
+      - name: year_month
+        tests: [not_null, unique]
+
+      - name: inventory_sales_ratio
+        description: Inventory at cost divided by one month of sales at retail.
+        tests: [not_null]
+        meta:
+          metric: true
+          metric_name: Inventory / sales ratio
+          tier: certified
+          grain: Month, whole network
+          owner: Inventory planning
+          definition: >
+            End-of-month inventory valued at cost, divided by that month's
+            sales at retail. Valuation follows the Census Monthly Retail Trade
+            Survey so the figure means the same thing as the anchor.
+          lineage: fact_inventory_month.closing_units, dim_sku.unit_cost, fact_order.value_shipped
+          version: "1.0"
+          version_history: "1.0 (2026-08-08) certified at first publication."
+          tier_reason: >
+            The only metric here checked directly against a real published
+            series. It sits below the Census sector band by design, because
+            this is a fulfillment network and the sector figure includes store
+            selling floors.
+
+  - name: fct_labor_productivity
+    description: Units per labor hour and labor cost, at frozen BLS wages.
+    columns:
+      - name: function
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['receiving', 'putaway', 'picking', 'packing', 'shipping']
+
+      - name: actual_units_per_hour
+        description: Units processed divided by labor hours.
+        tests: [not_null]
+        meta:
+          metric: true
+          metric_name: Units per labor hour
+          tier: certified
+          grain: Month x warehouse function
+          owner: DC operations
+          definition: Units processed divided by paid labor hours, by function.
+          lineage: fact_labor_day.units, fact_labor_day.hours
+          version: "1.0"
+          version_history: "1.0 (2026-08-08) certified at first publication."
+          tier_reason: >
+            Costed at BLS Occupational Employment and Wage Statistics medians
+            for the Seattle-Tacoma-Bellevue metro, May 2025, so cost per order
+            is a real regional number rather than an invented rate.
+
+  - name: fct_service_monthly
+    description: On-time shipping and inbound dock-to-stock, by month and banner.
+    columns:
+      - name: on_time_ship_rate
+        description: Shipped lines meeting the promise date, over shipped lines.
+        meta:
+          metric: true
+          metric_name: On-time ship
+          tier: certified
+          grain: Order line
+          owner: DC operations
+          definition: >
+            Order lines whose ship date fell on or before the promise date,
+            divided by lines that shipped at all.
+          lineage: fact_order_line.ship_date_key, fact_order_line.promise_date_key
+          version: "1.0"
+          version_history: >
+            1.0 (2026-08-08) certified on shipped lines only.
+          tier_reason: >
+            An unshipped line is a fill failure, not a lateness failure.
+            Counting it in both would charge one miss to two metrics, which is
+            exactly the double-counting this module exists to surface.
+
+      - name: avg_dock_to_stock_hours
+        description: Mean hours from receipt to putaway complete.
+        meta:
+          metric: true
+          metric_name: Dock-to-stock
+          tier: certified
+          grain: Receipt
+          owner: Inbound operations
+          definition: >
+            Mean elapsed hours between goods being received and being available
+            to pick.
+          lineage: fact_receipt.dock_to_stock_hours
+          version: "1.0"
+          version_history: "1.0 (2026-08-08) certified at first publication."
+          tier_reason: >
+            Stock that has arrived but is not put away cannot fill an order,
+            so this sits upstream of every fill rate on the register.
+
+  - name: fct_node_flow
+    description: Volume and parcel cost by node and month.
+    columns:
+      - name: node_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: source('controltower', 'dim_node')
+                field: node_key
+
+  - name: fct_operations_summary
+    description: One row summarising the whole operation.
+    columns:
+      - name: orders
+        tests: [not_null]
+      - name: unit_fill
+        tests: [not_null]

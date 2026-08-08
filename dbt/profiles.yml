@@ -1,0 +1,20 @@
+# Local profile, committed on purpose.
+#
+# There is no credential here to leak: the warehouse is a DuckDB file inside
+# this repository. Committing it means `dbt build` works for anyone who clones
+# the repo, with no setup step and no hidden state in a home directory.
+#
+# Run from the dbt/ directory:
+#     dbt build --profiles-dir .
+#
+# BigQuery is a gated Phase 2. When the GCP project exists, it becomes a second
+# output here and the models are unchanged — which is the point of keeping the
+# transformation layer in dbt rather than in the page build.
+cascadia_controltower:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/clean/controltower.duckdb
+      schema: analytics
+      threads: 4
