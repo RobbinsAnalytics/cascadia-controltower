@@ -1,0 +1,36 @@
+{
+  "seed": 20260808,
+  "period": [
+    "2024-08-01",
+    "2026-07-31"
+  ],
+  "content_sha256": "7e0408127793b5b36403571db87c9675211f9425dfc04da30553d50ec196c1c8",
+  "realized": {
+    "unit_fill": 0.9114132691961989,
+    "line_fill": 0.9058694644587705,
+    "order_fill": 0.8689623143991373,
+    "split_rate": 0.09994831119285698,
+    "counterfactual_unit_fill": 0.8770383273101456,
+    "orders": 381127
+  },
+  "targets": {
+    "unit_fill": 0.94,
+    "line_fill": 0.91,
+    "order_fill": 0.87
+  },
+  "row_counts": {
+    "fact_order": 381127,
+    "fact_order_line": 569592,
+    "fact_shipment": 410578,
+    "fact_receipt": 206909,
+    "fact_inventory_month": 195840,
+    "fact_labor_day": 2810
+  },
+  "wage_basis": {
+    "receiving": 22.95,
+    "putaway": 22.95,
+    "picking": 22.52,
+    "packing": 22.52,
+    "shipping": 27.1
+  }
+}
