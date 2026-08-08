@@ -96,7 +96,7 @@ PARAMS = {
                          11: 1.62, 12: 1.48},
 
     # Assortment.
-    "skus_per_banner": 1200,
+    "styles_per_banner": 1200,
     "velocity_mix": {"A": 0.20, "B": 0.30, "C": 0.50},      # share of SKUs
     "velocity_demand_share": {"A": 0.70, "B": 0.22, "C": 0.08},
 
@@ -105,12 +105,12 @@ PARAMS = {
     "banner": {
         "premium": {"name": "Alder & Vance", "order_share": 0.42,
                     "unit_value_mean": 88.0, "unit_value_sd": 34.0,
-                    "gross_margin": 0.385, "lines_lambda": 0.75,
-                    "cover_weeks": 2.10},
+                    "gross_margin": 0.385, "lines_lambda": 0.88,
+                    "cover_weeks": 1.86},
         "offprice": {"name": "Off-Main", "order_share": 0.58,
                      "unit_value_mean": 26.0, "unit_value_sd": 9.5,
-                     "gross_margin": 0.302, "lines_lambda": 1.01,
-                     "cover_weeks": 1.55},
+                     "gross_margin": 0.302, "lines_lambda": 1.19,
+                     "cover_weeks": 1.38},
     },
 
     # Where each velocity band is stocked. This single table is what makes
@@ -210,7 +210,33 @@ PARAMS = {
 }
 
 VELOCITY_BANDS = ["A", "B", "C"]
-CATEGORIES = ["Apparel", "Footwear", "Accessories", "Home", "Beauty"]
+
+# Categories and their size runs.
+#
+# THIS IS WHY THE THREE FILL RATES DIVERGE. Stock is held per style AND size, so
+# a line for three units of one style is three units of one SIZE, drawn against
+# a bin that typically holds a handful. The line ships two of three far more
+# often than it ships three or nothing.
+#
+# That matters because unit fill only separates from line fill through partially
+# filled lines: two of three units is a total failure to line fill but two
+# thirds of a success to unit fill. Holding inventory at style level — which is
+# what the first version of this generator did — makes lines behave as
+# all-or-nothing, and unit fill and line fill collapse onto the same number.
+#
+# Size brokenness is also simply the truth about retail. It is the single
+# commonest reason a retail order line ships incomplete, and a fulfillment model
+# without it is missing the main event.
+CATEGORY_CONFIG = {
+    "Apparel":     {"weight": 0.40, "sizes": ["XS", "S", "M", "L", "XL"],
+                    "shares": [0.10, 0.22, 0.30, 0.24, 0.14]},
+    "Footwear":    {"weight": 0.20, "sizes": ["6", "7", "8", "9", "10", "11"],
+                    "shares": [0.08, 0.15, 0.22, 0.24, 0.19, 0.12]},
+    "Accessories": {"weight": 0.15, "sizes": ["OS"], "shares": [1.0]},
+    "Home":        {"weight": 0.15, "sizes": ["OS"], "shares": [1.0]},
+    "Beauty":      {"weight": 0.10, "sizes": ["OS"], "shares": [1.0]},
+}
+CATEGORIES = list(CATEGORY_CONFIG)
 
 NODES = [
     # code, label, kind, cost rank (lower is cheaper to serve from)
@@ -242,16 +268,30 @@ def build_dimensions(rng: random.Random):
         })
         d += timedelta(days=1)
 
-    skus = []
+    # Categories are assigned by cumulative weight across the style index rather
+    # than drawn at random, so the assortment mix is exact rather than
+    # approximately right.
+    cat_cum, run = [], 0.0
+    for c in CATEGORIES:
+        run += CATEGORY_CONFIG[c]["weight"]
+        cat_cum.append((run, c))
+
+    def category_for(idx: int, n: int) -> str:
+        pos = (idx + 0.5) / n
+        for edge, c in cat_cum:
+            if pos <= edge:
+                return c
+        return CATEGORIES[-1]
+
+    styles, skus = [], []
     for banner in ("premium", "offprice"):
         cfg = PARAMS["banner"][banner]
-        n = PARAMS["skus_per_banner"]
+        n = PARAMS["styles_per_banner"]
         counts = {b: int(n * PARAMS["velocity_mix"][b]) for b in VELOCITY_BANDS}
         counts["C"] += n - sum(counts.values())          # absorb rounding
         i = 0
         for band in VELOCITY_BANDS:
-            for _ in range(counts[band]):
-                i += 1
+            for j in range(counts[band]):
                 value = max(3.0, rng.gauss(cfg["unit_value_mean"],
                                            cfg["unit_value_sd"]))
                 # Slow movers skew expensive — that is why they are slow, and it
@@ -261,16 +301,44 @@ def build_dimensions(rng: random.Random):
                     value *= 1.12
                 elif band == "C":
                     value *= 1.34
-                skus.append({
-                    "sku_key": f"{'AV' if banner == 'premium' else 'OM'}-{i:05d}",
-                    "banner": banner,
-                    "banner_name": cfg["name"],
-                    "category": CATEGORIES[i % len(CATEGORIES)],
-                    "velocity_band": band,
+                # Category is drawn from the position WITHIN the velocity band,
+                # not the position across the whole assortment. Using the global
+                # index made the bands come out sorted by category — fast movers
+                # were all apparel and slow movers all one-size goods — which
+                # would have confounded velocity with sizing and handed the
+                # module a finding that was really an artefact of style
+                # numbering.
+                category = category_for(j, counts[band])
+                i += 1
+                style_key = f"{'AV' if banner == 'premium' else 'OM'}-{i:05d}"
+                styles.append({
+                    "style_key": style_key, "banner": banner,
+                    "category": category, "velocity_band": band,
                     "unit_value": round(value, 2),
-                    "unit_cost": round(value * (1 - cfg["gross_margin"]), 2),
-                    "stocking_breadth": PARAMS["stocking_breadth"][band],
                 })
+                sizes = CATEGORY_CONFIG[category]["sizes"]
+                shares = CATEGORY_CONFIG[category]["shares"]
+                for size, share in zip(sizes, shares):
+                    skus.append({
+                        "sku_key": f"{style_key}-{size}",
+                        "style_key": style_key,
+                        "size": size,
+                        "size_share": share,
+                        "banner": banner,
+                        "banner_name": cfg["name"],
+                        "category": category,
+                        "velocity_band": band,
+                        "unit_value": round(value, 2),
+                        "unit_cost": round(value * (1 - cfg["gross_margin"]), 2),
+                        "stocking_breadth": PARAMS["stocking_breadth"][band],
+                    })
+
+    for s in styles:
+        cfg = PARAMS["banner"][s["banner"]]
+        s["banner_name"] = cfg["name"]
+        s["unit_cost"] = round(s["unit_value"] * (1 - cfg["gross_margin"]), 2)
+        s["size_count"] = len(CATEGORY_CONFIG[s["category"]]["sizes"])
+        s["stocking_breadth"] = PARAMS["stocking_breadth"][s["velocity_band"]]
 
     nodes = [{"node_key": c, "node_name": nm, "node_kind": k, "cost_rank": r}
              for c, nm, k, r in NODES]
@@ -279,7 +347,7 @@ def build_dimensions(rng: random.Random):
                 "gross_margin": PARAMS["banner"][b]["gross_margin"],
                 "promise_days": PARAMS["promise_days"][b]}
                for b in ("premium", "offprice")]
-    return days, skus, nodes, banners
+    return days, styles, skus, nodes, banners
 
 
 def assign_stocking(skus):
@@ -292,23 +360,30 @@ def assign_stocking(skus):
     them dead weight in the network and would understate how often a store is
     the only place a unit exists.
 
+    Breadth is decided per STYLE, not per size: a node either ranges a style or
+    it does not, and if it ranges it, it ranges the size run. Deciding this per
+    size would let a node hold a large and not a medium of the same style, which
+    is not how anyone buys or allocates.
+
     Uses its own generator so that changing anything upstream in the draw order
     cannot silently reshuffle the assortment map.
     """
     r = random.Random(SEED + 1)
     stores = [n for n in NODE_ORDER if n.startswith("S")]
-    placement = {}
+    by_style = {}
     for s in sorted(skus, key=lambda x: x["sku_key"]):
-        breadth = s["stocking_breadth"]
-        nodes = ["FC1"]
-        if breadth >= 2:
-            nodes.append("FC2")
-        n_stores = max(0, breadth - 2)
-        if n_stores:
-            nodes.extend(sorted(r.sample(stores, min(n_stores, len(stores)))))
-        # keep cost order so the allocator's preference stays meaningful
-        placement[s["sku_key"]] = [n for n in NODE_ORDER if n in set(nodes)]
-    return placement
+        style = s["style_key"]
+        if style not in by_style:
+            breadth = s["stocking_breadth"]
+            nodes = ["FC1"]
+            if breadth >= 2:
+                nodes.append("FC2")
+            n_stores = max(0, breadth - 2)
+            if n_stores:
+                nodes.extend(sorted(r.sample(stores,
+                                             min(n_stores, len(stores)))))
+            by_style[style] = [n for n in NODE_ORDER if n in set(nodes)]
+    return {s["sku_key"]: by_style[s["style_key"]] for s in skus}
 
 
 # ===========================================================================
@@ -320,21 +395,35 @@ def assign_stocking(skus):
 # ===========================================================================
 
 def build_demand_weights(skus, rng):
-    weights = {}
+    """Demand weight per SKU = style popularity x that size's share of the run.
+
+    Popularity is drawn at STYLE level. Customers want a style and then need
+    their size; they do not independently prefer a medium of one style and a
+    large of another. Drawing at size level would smear the long tail across
+    the size run and quietly remove the thin-bin problem this model exists to
+    represent.
+    """
+    style_rows = {}
+    for s in skus:
+        style_rows.setdefault(s["style_key"], s)
+
+    style_weight = {}
     for banner in ("premium", "offprice"):
-        band_skus = defaultdict(list)
-        for s in skus:
+        band_styles = defaultdict(list)
+        for key, s in style_rows.items():
             if s["banner"] == banner:
-                band_skus[s["velocity_band"]].append(s["sku_key"])
+                band_styles[s["velocity_band"]].append(key)
         for band in VELOCITY_BANDS:
-            keys = sorted(band_skus[band])
-            # Long tail within the band: a few SKUs carry most of the band.
+            keys = sorted(band_styles[band])
+            # Long tail within the band: a few styles carry most of the band.
             raw = [rng.paretovariate(1.6) for _ in keys]
             total = sum(raw)
             share = PARAMS["velocity_demand_share"][band]
             for k, r in zip(keys, raw):
-                weights[k] = share * r / total
-    return weights
+                style_weight[k] = share * r / total
+
+    return {s["sku_key"]: style_weight[s["style_key"]] * s["size_share"]
+            for s in skus}
 
 
 def day_order_count(d: date, rng: random.Random) -> int:
@@ -466,9 +555,17 @@ def counterfactual_single_node(lines, on_hand, eligible):
 # 5 · THE SIMULATION
 # ===========================================================================
 
-def simulate(rng: random.Random, days, skus, placement, weights):
+def simulate(rng: random.Random, days, styles, skus, placement, weights):
     sku_by_key = {s["sku_key"]: s for s in skus}
     sku_keys = sorted(sku_by_key)
+
+    # Size run per style, with each size's share of demand. An order LINE is a
+    # style and a quantity; the sizes are what the customer actually needs and
+    # what the warehouse must actually find.
+    sizes_by_style = defaultdict(list)
+    for s in sorted(skus, key=lambda x: x["sku_key"]):
+        sizes_by_style[s["style_key"]].append((s["sku_key"], s["size_share"]))
+    style_of_sku = {s["sku_key"]: s["style_key"] for s in skus}
 
     # --- opening inventory and replenishment plan ---------------------------
     # Weekly demand per SKU per node, used for cover-based stocking. A node's
@@ -487,8 +584,17 @@ def simulate(rng: random.Random, days, skus, placement, weights):
         mean_qty = 1 + PARAMS["qty_mean_excess"]
         daily_units[k] = weights[k] * banner_orders * mean_lines * mean_qty
 
+    # Textbook (s, S) policy, stated in weeks of demand rather than as a magic
+    # fraction. The reorder point has to cover the demand that arrives while the
+    # order is in transit AND while waiting for the next weekly review, plus
+    # safety stock. An earlier version triggered at a flat 60% of the order-up-to
+    # level, which happened to sit just below lead-time-plus-review demand, so
+    # every replenishment arrived slightly too late and fill collapsed for a
+    # reason that had nothing to do with the inventory being thin.
     on_hand = {}
     target_level = {}
+    reorder_point = {}
+    review_weeks = PARAMS["review_period_days"] / 7
     for k in sku_keys:
         s = sku_by_key[k]
         cover = PARAMS["banner"][s["banner"]]["cover_weeks"]
@@ -501,8 +607,11 @@ def simulate(rng: random.Random, days, skus, placement, weights):
             if len(nodes) == 1:
                 node_share = 1.0
             weekly = daily_units[k] * 7 * node_share
+            lead_weeks = PARAMS["lead_time_days"][kind] / 7
+            rop = weekly * (lead_weeks + review_weeks + ss)
             eff_cover = cover * PARAMS["node_cover_multiplier"][kind]
-            tgt = max(2, int(round(weekly * (eff_cover + ss))))
+            reorder_point[(k, node)] = max(1, int(round(rop)))
+            tgt = max(2, int(round(rop + weekly * eff_cover)))
             target_level[(k, node)] = tgt
             on_hand[(k, node)] = tgt
 
@@ -518,6 +627,13 @@ def simulate(rng: random.Random, days, skus, placement, weights):
     receipt_seq = 0
     current_week = None
     pick_tables: dict = {}
+    # Stock in transit. Replenishment raises on_hand on the day it ARRIVES, not
+    # the day it is ordered — without this the lead time is a documented
+    # parameter that changes nothing, and the ledger credits a receipt to the
+    # month it lands in while the units were already available to ship in the
+    # month before, which drives closing balances negative.
+    pending = defaultdict(list)
+    on_order = defaultdict(int)
 
     for dinfo in days:
         d = dinfo["full_date"]
@@ -536,14 +652,27 @@ def simulate(rng: random.Random, days, skus, placement, weights):
             for key, qty in on_hand.items():
                 month_ledger[(key[0], key[1], ym)]["opening"] = qty
 
+        # --- arrivals: stock ordered earlier lands today ---------------------
+        for k, node, qty in pending.pop(d, []):
+            key = (k, node)
+            on_hand[key] += qty
+            on_order[key] -= qty
+            month_ledger[(k, node, ym)]["receipts"] += qty
+            labor_units[d]["receiving"] += qty
+            labor_units[d]["putaway"] += qty
+
         # --- replenishment: weekly review, deterministic day of week --------
         if d.weekday() == 1:                       # Tuesday review
             for k in sku_keys:
                 for node in placement[k]:
                     key = (k, node)
                     tgt = target_level[key]
-                    if on_hand[key] < tgt * 0.6:
-                        qty = tgt - on_hand[key]
+                    # Reorder against inventory POSITION — on hand plus on
+                    # order. Reordering against on-hand alone would order the
+                    # same shortfall again at every review until the first
+                    # delivery landed.
+                    if on_hand[key] + on_order[key] <= reorder_point[key]:
+                        qty = tgt - on_hand[key] - on_order[key]
                         kind = "FC1" if node == "FC1" else (
                             "FC2" if node == "FC2" else "STORE")
                         lead = PARAMS["lead_time_days"][kind]
@@ -559,12 +688,8 @@ def simulate(rng: random.Random, days, skus, placement, weights):
                             f"R{receipt_seq:08d}", int(recv.strftime("%Y%m%d")),
                             k, node, qty, round(dts, 2),
                             sku_by_key[k]["banner"]))
-                        # Received stock lands after putaway completes.
-                        on_hand[key] += qty
-                        rym = f"{recv.year}-{recv.month:02d}"
-                        month_ledger[(k, node, rym)]["receipts"] += qty
-                        labor_units[recv]["receiving"] += qty
-                        labor_units[recv]["putaway"] += qty
+                        pending[recv].append((k, node, qty))
+                        on_order[key] += qty
 
         # --- orders ---------------------------------------------------------
         n_orders = day_order_count(d, rng)
@@ -577,20 +702,47 @@ def simulate(rng: random.Random, days, skus, placement, weights):
             n_lines = 1 + min(6, int(rng.expovariate(1 / cfg["lines_lambda"])))
 
             # pick SKUs for this order, weighted, without replacement
-            lines = []
+            # A line is a STYLE and a quantity. The units are then spread across
+            # the size run, because that is what the customer needs and what the
+            # warehouse has to find. Three units of a style is an ordinary
+            # basket; three units of one SIZE of one style is a wholesale order,
+            # which is why the line cannot be grained at size.
+            lines, subs = [], []
             seen = set()
             for _ in range(n_lines):
                 for _attempt in range(6):
                     k = _weighted_pick(rng, banner, pick_tables)
-                    if k not in seen:
-                        seen.add(k)
+                    style = style_of_sku[k]
+                    if style not in seen:
+                        seen.add(style)
                         break
                 else:
                     continue
                 qty = 1 + int(rng.expovariate(1 / PARAMS["qty_mean_excess"]))
                 qty = min(qty, PARAMS["qty_cap"])
-                lines.append({"sku_key": k, "qty_ordered": qty,
-                              "unit_value": sku_by_key[k]["unit_value"]})
+                unit_value = sku_by_key[k]["unit_value"]
+                line_idx = len(lines)
+
+                run = sizes_by_style[style]
+                by_size = defaultdict(int)
+                for _u in range(qty):
+                    x = rng.random() * sum(sh for _, sh in run)
+                    acc = 0.0
+                    chosen = run[-1][0]
+                    for sku_key, sh in run:
+                        acc += sh
+                        if x <= acc:
+                            chosen = sku_key
+                            break
+                    by_size[chosen] += 1
+
+                lines.append({"style_key": style, "qty_ordered": qty,
+                              "unit_value": unit_value,
+                              "sizes_requested": len(by_size)})
+                for sku_key, units in sorted(by_size.items()):
+                    subs.append({"line_idx": line_idx, "sku_key": sku_key,
+                                 "qty_ordered": units,
+                                 "unit_value": unit_value})
             if not lines:
                 continue
 
@@ -604,18 +756,18 @@ def simulate(rng: random.Random, days, skus, placement, weights):
             # ship partially, and partial large lines are what pull unit fill
             # below line fill.
             phantom = {}
-            for ln in lines:
-                for node in placement[ln["sku_key"]]:
+            for sb in subs:
+                for node in placement[sb["sku_key"]]:
                     if rng.random() >= PARAMS["phantom_pick_rate"]:
                         continue
-                    key = (ln["sku_key"], node)
+                    key = (sb["sku_key"], node)
                     held = on_hand.get(key, 0)
                     if held <= 0:
                         continue
                     phantom[key] = min(held, 1 + int(rng.expovariate(0.55)))
 
-            plan, _ = allocate(lines, on_hand, placement, phantom)
-            cf_units = counterfactual_single_node(lines, on_hand, placement)
+            plan, _ = allocate(subs, on_hand, placement, phantom)
+            cf_units = counterfactual_single_node(subs, on_hand, placement)
 
             # The phantom units never existed. Write them off so the ledger
             # balances: they leave inventory as an adjustment, not as a
@@ -630,37 +782,51 @@ def simulate(rng: random.Random, days, skus, placement, weights):
             order_value_ord, order_value_shp = 0.0, 0.0
             lines_full = 0
 
+            # Commit the allocation at size grain, then roll the sizes back up
+            # to the line the customer actually placed.
+            line_shipped = defaultdict(int)
+            line_nodes = defaultdict(set)
+            line_sizes_filled = defaultdict(int)
+            for si, sb in enumerate(subs):
+                shipped_sub = sum(q for _, q in plan[si])
+                line_shipped[sb["line_idx"]] += shipped_sub
+                if shipped_sub == sb["qty_ordered"]:
+                    line_sizes_filled[sb["line_idx"]] += 1
+                for node, q in plan[si]:
+                    nodes_used.add(node)
+                    line_nodes[sb["line_idx"]].add(node)
+                    on_hand[(sb["sku_key"], node)] -= q
+                    month_ledger[(sb["sku_key"], node, ym)]["shipped"] += q
+                    labor_units[d]["picking"] += q
+                    labor_units[d]["packing"] += q
+                    labor_units[d]["shipping"] += q
+
             for i, ln in enumerate(lines):
-                shipped = sum(q for _, q in plan[i])
+                shipped = line_shipped[i]
                 order_units_ord += ln["qty_ordered"]
                 order_units_shp += shipped
                 order_value_ord += ln["qty_ordered"] * ln["unit_value"]
                 order_value_shp += shipped * ln["unit_value"]
                 if shipped == ln["qty_ordered"]:
                     lines_full += 1
-                for node, q in plan[i]:
-                    nodes_used.add(node)
-                    on_hand[(ln["sku_key"], node)] -= q
-                    month_ledger[(ln["sku_key"], node, ym)]["shipped"] += q
-                    labor_units[d]["picking"] += q
-                    labor_units[d]["packing"] += q
-                    labor_units[d]["shipping"] += q
                 # Ship lag, and the honest consequence: a line sourced from a
                 # store takes longer, so splits also cost service, not just
                 # money.
                 lag = 1 + int(rng.random() * 2)
-                if any(n.startswith("S") for n, _ in plan[i]):
+                if any(n.startswith("S") for n in line_nodes[i]):
                     lag += 1
                 ship_date = d + timedelta(days=lag)
+                nodes_here = [n for n in NODE_ORDER if n in line_nodes[i]]
                 fact_lines.append((
-                    order_id, i + 1, ln["sku_key"], banner,
+                    order_id, i + 1, ln["style_key"], banner,
                     int(d.strftime("%Y%m%d")),
                     int(ship_date.strftime("%Y%m%d")) if shipped else None,
                     int(promise.strftime("%Y%m%d")),
                     ln["qty_ordered"], shipped,
                     round(ln["unit_value"], 2),
-                    plan[i][0][0] if plan[i] else None,
-                    len({n for n, _ in plan[i]}),
+                    nodes_here[0] if nodes_here else None,
+                    len(nodes_here),
+                    ln["sizes_requested"], line_sizes_filled[i],
                 ))
 
             # One parcel per node used. This is the leak, and it is arithmetic,
@@ -814,14 +980,16 @@ def main() -> None:
     print(f"Cascadia Control Tower generator · seed {SEED}")
     print(f"Period {PARAMS['period_start']} to {PARAMS['period_end']}\n")
 
-    days, skus, nodes, banners = build_dimensions(rng)
+    days, styles, skus, nodes, banners = build_dimensions(rng)
     placement = assign_stocking(skus)
     weights = build_demand_weights(skus, rng)
-    print(f"  {len(days)} days · {len(skus)} SKUs · {len(nodes)} nodes")
+    print(f"  {len(days)} days · {len(styles):,} styles · {len(skus):,} SKUs "
+          f"(style x size) · {len(nodes)} nodes")
 
     print("  simulating ...")
     (f_orders, f_lines, f_ship, f_recv, ledger,
-     labor_units, closing) = simulate(rng, days, skus, placement, weights)
+     labor_units, closing) = simulate(rng, days, styles, skus, placement,
+                                      weights)
     print(f"  {len(f_orders):,} orders · {len(f_lines):,} lines · "
           f"{len(f_ship):,} shipments · {len(f_recv):,} receipts")
 
@@ -866,10 +1034,14 @@ def main() -> None:
         "one_parcel_equivalent_cost", "split_premium", "gross_margin_dollars",
         "counterfactual_units_single_node", "promise_date_key"])
 
+    write("dim_style", [tuple(r.values()) for r in styles],
+          list(styles[0].keys()))
+
     write("fact_order_line", f_lines, [
-        "order_id", "line_no", "sku_key", "banner", "order_date_key",
+        "order_id", "line_no", "style_key", "banner", "order_date_key",
         "ship_date_key", "promise_date_key", "qty_ordered", "qty_shipped",
-        "unit_value", "primary_node", "nodes_on_line"])
+        "unit_value", "primary_node", "nodes_on_line", "sizes_requested",
+        "sizes_filled"])
 
     write("fact_shipment", f_ship, [
         "shipment_id", "order_id", "node_key", "ship_date_key", "units",

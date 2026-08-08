@@ -100,6 +100,15 @@ One dataset, three arithmetics, three different questions. All three are
 computed from `qty_ordered` and `qty_shipped` on the order line — none is
 assigned, and none is derived from another.
 
+**An order line is a style and a quantity; stock is held per style AND size.**
+That distinction is what lets the three numbers differ at all. A line for three
+units spreads across the size run, and the warehouse must find each size
+separately, so the line commonly ships two of three rather than all or nothing.
+Hold stock at style level instead and every line becomes all-or-nothing, at
+which point unit fill and line fill collapse to within half a point of each
+other — the same number wearing two names. Size brokenness is also simply the
+commonest reason a real retail line ships incomplete.
+
 | Metric | Numerator | Denominator | The question it answers |
 |---|---|---|---|
 | **Order fill** *(certified)* | Orders where every line shipped complete | All orders | "Did the customer get what they asked for?" |
