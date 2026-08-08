@@ -106,11 +106,23 @@ python src/conform_anchors.py    # govern them into data/clean (no network)
 |---|---|
 | Anchor verification | Complete — `governance/anchor_verification.md` |
 | Anchor freeze and conform | Complete |
-| Generator and star schema | In progress |
-| `validate.py` and realism audits | Not started |
+| Generator and star schema | Complete — `governance/generator_assumptions.md` |
+| `validate.py` and realism audits | Complete — **12/12 green** |
 | dbt on DuckDB | Not started |
 | Static ECharts page | Not started |
 | Reading panel | Not started |
+
+The three fill rates the module is about, as generated:
+
+| Metric | Value | Read by |
+|---|---|---|
+| Unit fill | **94.3%** | Operations |
+| Line fill | **91.6%** | Merchant team |
+| Order fill | **87.2%** | Finance |
+
+One dataset, three arithmetics, three defensible answers, none reconciled.
+Splitting buys 2.65 points of unit fill and costs 12.09% of gross margin in the
+off-price banner against 3.55% in premium.
 
 **The warehouse layer ships as DuckDB.** BigQuery and Looker Studio are a named,
 gated Phase 2 awaiting a GCP project. The static page is the durable artifact and
