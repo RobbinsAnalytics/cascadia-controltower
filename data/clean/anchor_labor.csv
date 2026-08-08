@@ -1,0 +1,5 @@
+soc_code,role,tier,occupation,area,area_title,vintage,h_pct10,h_pct25,h_median,h_pct75,h_pct90,a_median,tot_emp
+53-7062,material_mover,anchor,"Laborers and Freight, Stock, and Material Movers, Hand",42660,"Seattle-Tacoma-Bellevue, WA",May 2025,18.87,20.87,22.95,26.48,30.0,47740.0,29490.0
+53-7065,order_filler,supporting,Stockers and Order Fillers,42660,"Seattle-Tacoma-Bellevue, WA",May 2025,18.52,20.14,22.52,24.28,27.8,46830.0,30860.0
+43-5071,shipping_receiving_clerk,supporting,"Shipping, Receiving, and Inventory Clerks",42660,"Seattle-Tacoma-Bellevue, WA",May 2025,19.43,22.81,27.1,33.13,48.45,56370.0,12520.0
+53-1047,supervisor,supporting,"First-Line Supervisors of Transportation and Material Moving Workers, Except Aircraft Cargo Handling Supervisors",42660,"Seattle-Tacoma-Bellevue, WA",May 2025,25.81,29.43,36.73,43.32,51.24,76390.0,8250.0

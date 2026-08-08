@@ -1,0 +1,85 @@
+{
+  "module": "cascadia-controltower",
+  "retrieval_date": "2026-08-08",
+  "principle": "Pull once, freeze, commit. No build step and no published page makes a live network call. Every realism audit is reproducible from these bytes alone; the sha256 of each file is recorded so a reader can prove the audit ran against what is committed.",
+  "naming_note": "The generator's calibration filer is NOT in this manifest and is not named anywhere in this repository. Only derived, unattributed ratios enter the repo, in calibration_envelope.json. See governance/naming_policy.md for why this one source deliberately breaks the freeze-and-commit principle.",
+  "user_agent": "RobbinsAnalytics cascadia-controltower ajayrobbins@hotmail.com",
+  "anchors": {
+    "A_labor": {
+      "source": "BLS OEWS",
+      "series": "SOC 53-7062",
+      "area": "42660 Seattle-Tacoma-Bellevue, WA",
+      "vintage": "May 2025",
+      "file": "oesm25ma.zip"
+    },
+    "B_inventory": {
+      "source": "US Census MRTS",
+      "series": "Department stores, end-of-month inventories and inventories/sales ratio",
+      "file": "mrtsinv92-present.xlsx"
+    },
+    "C_peers": {
+      "source": "SEC EDGAR companyfacts",
+      "companies": {
+        "M": {
+          "cik": "0000794367",
+          "entity_name": "Macy's, Inc.",
+          "file": "companyfacts_M_CIK0000794367.json"
+        },
+        "KSS": {
+          "cik": "0000885639",
+          "entity_name": "KOHL'S CORP",
+          "file": "companyfacts_KSS_CIK0000885639.json"
+        },
+        "DDS": {
+          "cik": "0000028917",
+          "entity_name": "DILLARD\u2019S,\u00a0INC.",
+          "file": "companyfacts_DDS_CIK0000028917.json"
+        }
+      }
+    }
+  },
+  "files": {
+    "company_tickers.json": {
+      "url": "https://www.sec.gov/files/company_tickers.json",
+      "bytes": 795660,
+      "sha256": "091a782b9832de53664c33282b536497b46bd7724a116fc425ceb4c6540a3e13",
+      "note": "SEC's authoritative ticker->CIK map. Peer CIKs are resolved from this committed file so no CIK in this repo is hand-typed."
+    },
+    "companyfacts_M_CIK0000794367.json": {
+      "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000794367.json",
+      "bytes": 3756173,
+      "sha256": "fccd76252c4f3b7c9e7328082138d0a3d8d49c94cc2d2de2167e881aabae1f55",
+      "note": "M \u00b7 Macy's, Inc."
+    },
+    "companyfacts_KSS_CIK0000885639.json": {
+      "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000885639.json",
+      "bytes": 2875363,
+      "sha256": "aa930f66b48e2a28fbbdd66177a9eb36b5573401938e2c12ddfa2e3050a69443",
+      "note": "KSS \u00b7 KOHL'S CORP"
+    },
+    "companyfacts_DDS_CIK0000028917.json": {
+      "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000028917.json",
+      "bytes": 2812563,
+      "sha256": "cc9eb4f387114bad5011177ac61d723747e74492e323fcc83b23755a4b94369c",
+      "note": "DDS \u00b7 DILLARD\u2019S,\u00a0INC."
+    },
+    "oesm25ma.zip": {
+      "url": "https://www.bls.gov/oes/special-requests/oesm25ma.zip",
+      "bytes": 39932338,
+      "sha256": "cc3e6fa80edf64ab8fd0e8a6472ef1b513a6bcaef2f5018e9649c485793b0b99",
+      "note": "Read MSA_M2025_dl.xlsx from this archive, NOT BOS_M2025_dl.xlsx (Balance of State) \u2014 the latter has SOC 53-7062 but no metro areas, so area 42660 silently disappears."
+    },
+    "mrtsinv92-present.xlsx": {
+      "url": "https://www.census.gov/retail/mrtsinv/www/mrtsinv92-present.xlsx",
+      "bytes": 245266,
+      "sha256": "b8cd273c22cb1cf88bcf2ea5cde31d6524a418c089c9f47dd3c8e2cef752c122",
+      "note": "End-of-month retail inventories AND inventories/sales ratios by kind of business, 1992-present. 'Department stores' is the line realism audit A checks against. Note the path is under retail/mrtsinv/, not retail/mrts/."
+    },
+    "mrtssales92-present.xlsx": {
+      "url": "https://www.census.gov/retail/mrts/www/mrtssales92-present.xlsx",
+      "bytes": 440562,
+      "sha256": "818f96fe20861897dbf5a3e417b15249190a6724c450fed31521ea8054b099e6",
+      "note": "Companion monthly sales series, same kind-of-business breakdown."
+    }
+  }
+}

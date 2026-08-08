@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+.user.yml
+
+# Credentials — never commit. profiles.yml may reference env vars only.
+*.json.key
+service-account*.json
+
+# OS noise
+Thumbs.db
+.DS_Store
+
+# The calibration filer's RAW bundle must never be committed. Its JSON carries
+# the entity name and ticker in plain text, and the naming rule has no
+# exceptions. Only the derived, unattributed data/raw/calibration_envelope.json
+# enters the repo. This is belt-and-braces: the pull is written outside the repo
+# in the first place, and this makes an accidental stage impossible too.
+data/raw/_calibration_raw/
+_calibration_raw/
+
+# NOTE: data/raw/ is intentionally COMMITTED. The frozen BLS, Census and SEC
+# EDGAR snapshots are what the three realism audits check against — without
+# them the audits cannot be reproduced. Do not ignore them.
+#
+# NOTE: the generated warehouse file is also COMMITTED. The generator is
+# seeded, so the same seed must produce the same database hash; the committed
+# artifact is what makes that claim checkable by a reader who does not run it.

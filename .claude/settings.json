@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git fetch*)",
+      "Bash(git remote*)",
+      "Bash(git rev-parse*)",
+      "Bash(git rev-list*)",
+      "Bash(git branch*)",
+      "Bash(git check-ignore*)",
+      "Bash(git ls-files*)",
+      "Bash(git restore*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(gh run*)",
+
+      "Bash(python src/*)",
+      "Bash(python validate.py*)",
+      "Bash(python -c *)",
+      "Bash(python -m pip install*)",
+      "Bash(python -m pip list*)",
+      "Bash(pip install*)",
+      "Bash(pip list*)",
+
+      "Bash(dbt debug*)",
+      "Bash(dbt deps*)",
+      "Bash(dbt seed*)",
+      "Bash(dbt run*)",
+      "Bash(dbt build*)",
+      "Bash(dbt test*)",
+      "Bash(dbt docs*)",
+      "Bash(dbt --version)",
+
+      "Bash(curl -sS https://www.sec.gov/*)",
+      "Bash(curl -sS https://data.sec.gov/*)",
+      "Bash(curl -sS https://www.census.gov/*)",
+      "Bash(curl -sS https://www.bls.gov/*)",
+      "Bash(curl -sSI https://www.sec.gov/*)",
+      "Bash(curl -sSI https://data.sec.gov/*)",
+      "Bash(curl -sSI https://www.census.gov/*)",
+      "Bash(curl -sSI https://www.bls.gov/*)",
+
+      "Read(//c/Projects/**)",
+      "Read(//c/Users/Ajayr/OneDrive/Claude Projects/Portfolio Project/**)"
+    ],
+    "ask": [
+      "Bash(git push*)",
+      "Bash(git reset --hard*)",
+      "Bash(git rebase*)",
+      "Bash(gh repo create*)",
+      "Bash(gcloud auth*)",
+      "Bash(bq mk*)",
+      "Bash(bq rm*)"
+    ],
+    "deny": [
+      "Bash(git push*--force*)",
+      "Bash(git push*-f *)",
+      "Bash(git add -A*)",
+      "Bash(git add .)",
+      "Bash(git add . *)"
+    ]
+  },
+  "defaultMode": "acceptEdits",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/no_whitespace_commits.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

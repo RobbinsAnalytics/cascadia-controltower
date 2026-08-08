@@ -1,0 +1,26 @@
+# Line endings: normalized to LF in the repository and on checkout.
+#
+# Windows tooling rewrites files with CRLF, which makes clean files read as
+# modified. In this repo that matters for two reasons beyond cosmetics: the
+# frozen source snapshots under data/raw/ are the credibility anchor for the
+# realism audits, and a whitespace-only diff staged by accident is exactly the
+# failure the PreToolUse hook exists to refuse.
+#
+# Declared before the first commit, so no renormalization commit is ever needed.
+
+* text=auto eol=lf
+
+# Binaries: never examined for line endings, never normalized.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary
+*.db   binary
+*.duckdb binary
+*.sqlite binary
+*.zip  binary
+*.gz   binary

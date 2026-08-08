@@ -1,0 +1,19 @@
+ticker,entity_name,concept,winning_tag,status,fiscal_years_covered,candidates_tried
+M,"Macy's, Inc.",revenue,RevenueFromContractWithCustomerExcludingAssessedTax,filed,FY2016-FY2025,RevenueFromContractWithCustomerExcludingAssessedTax > Revenues > SalesRevenueNet
+M,"Macy's, Inc.",revenue,SalesRevenueNet,filed,FY2007-FY2015,RevenueFromContractWithCustomerExcludingAssessedTax > Revenues > SalesRevenueNet
+M,"Macy's, Inc.",cost_of_sales,CostOfGoodsAndServicesSold,filed,FY2007-FY2025,CostOfGoodsAndServicesSold > CostOfRevenue > CostOfGoodsSold
+M,"Macy's, Inc.",sga,SellingGeneralAndAdministrativeExpense,filed,FY2007-FY2025,SellingGeneralAndAdministrativeExpense > GeneralAndAdministrativeExpense
+M,"Macy's, Inc.",inventory,InventoryFinishedGoods,filed,FY2008-FY2015,InventoryNet > RetailRelatedInventoryMerchandise > InventoryFinishedGoods
+M,"Macy's, Inc.",inventory,InventoryNet,filed,FY2016-FY2025,InventoryNet > RetailRelatedInventoryMerchandise > InventoryFinishedGoods
+KSS,KOHL'S CORP,revenue,RevenueFromContractWithCustomerExcludingAssessedTax,filed,FY2016-FY2025,RevenueFromContractWithCustomerExcludingAssessedTax > Revenues > SalesRevenueNet
+KSS,KOHL'S CORP,revenue,SalesRevenueNet,filed,FY2007-FY2015,RevenueFromContractWithCustomerExcludingAssessedTax > Revenues > SalesRevenueNet
+KSS,KOHL'S CORP,cost_of_sales,CostOfGoodsAndServicesSold,filed,FY2016-FY2025,CostOfGoodsAndServicesSold > CostOfRevenue > CostOfGoodsSold
+KSS,KOHL'S CORP,cost_of_sales,CostOfGoodsSold,filed,FY2007-FY2015,CostOfGoodsAndServicesSold > CostOfRevenue > CostOfGoodsSold
+KSS,KOHL'S CORP,sga,SellingGeneralAndAdministrativeExpense,filed,FY2007-FY2025,SellingGeneralAndAdministrativeExpense > GeneralAndAdministrativeExpense
+KSS,KOHL'S CORP,inventory,InventoryNet,filed,FY2008-FY2025,InventoryNet > RetailRelatedInventoryMerchandise > InventoryFinishedGoods
+DDS,"DILLARD’S, INC.",revenue,RevenueFromContractWithCustomerExcludingAssessedTax,filed,FY2021-FY2025,RevenueFromContractWithCustomerExcludingAssessedTax > Revenues > SalesRevenueNet
+DDS,"DILLARD’S, INC.",revenue,Revenues,filed,FY2008-FY2020,RevenueFromContractWithCustomerExcludingAssessedTax > Revenues > SalesRevenueNet
+DDS,"DILLARD’S, INC.",cost_of_sales,CostOfGoodsAndServicesSold,filed,FY2016-FY2021,CostOfGoodsAndServicesSold > CostOfRevenue > CostOfGoodsSold
+DDS,"DILLARD’S, INC.",cost_of_sales,CostOfRevenue,filed,FY2008-FY2025,CostOfGoodsAndServicesSold > CostOfRevenue > CostOfGoodsSold
+DDS,"DILLARD’S, INC.",sga,SellingGeneralAndAdministrativeExpense,filed,FY2014-FY2025,SellingGeneralAndAdministrativeExpense > GeneralAndAdministrativeExpense
+DDS,"DILLARD’S, INC.",inventory,RetailRelatedInventoryMerchandise,filed,FY2009-FY2025,InventoryNet > RetailRelatedInventoryMerchandise > InventoryFinishedGoods
