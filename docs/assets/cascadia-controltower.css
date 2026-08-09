@@ -1,0 +1,235 @@
+/* ==========================================================================
+   Cascadia Control Tower — module stylesheet.
+
+   Tokens are the VIZ-PRINCIPLES v2.2 "Cascadia" palette, matching
+   cascadia-echarts-theme.js exactly so the page chrome and the charts cannot
+   drift apart.
+
+   Rule 5.7: dark mode is a second palette or it is nothing. No second palette
+   has been authored and validated against a dark surface, so this page
+   declares light and means it.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  --evergreen: #1E7A4C;
+  --glacier:   #4C8BC0;
+  --madrona:   #C05A2E;
+  --lupine:    #7B68AE;
+  --lichen:    #9C7A20;
+  --rain:      #9AA6A0;
+  --basalt:    #232B27;
+  --slate:     #5B6660;
+  --mist:      #E4E7E3;
+  --paper:     #FCFCFA;
+  --spruce:    #16241D;
+
+  --page:    #F5F6F4;
+  --surface: var(--paper);
+  --ring:    rgba(35, 43, 39, 0.12);
+
+  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --sans:  "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--basalt);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 56px; }
+
+/* Rule 5.3 / 2.4.7 / 2.4.13 — focus is visible, 2px, and never clipped. */
+:focus-visible {
+  outline: 3px solid var(--evergreen);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+a { color: var(--evergreen); }
+a:hover { text-decoration-thickness: 2px; }
+
+.skip {
+  position: absolute; left: -9999px; top: 0;
+  background: var(--paper); color: var(--basalt);
+  padding: 10px 16px; z-index: 100; border: 2px solid var(--evergreen);
+}
+.skip:focus { left: 8px; top: 8px; }
+
+/* ---- header ---------------------------------------------------------- */
+.site-head { padding: 30px 0 6px; }
+.kicker {
+  font-size: 12px; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--slate); margin: 0 0 8px;
+}
+h1 {
+  font-family: var(--serif);
+  font-size: clamp(26px, 5vw, 38px);
+  line-height: 1.15; margin: 0 0 10px; font-weight: 600;
+  max-width: 22ch;
+}
+.standfirst {
+  font-family: var(--serif);
+  font-size: clamp(16px, 2.2vw, 19px);
+  color: var(--slate); margin: 0 0 16px; max-width: 62ch;
+}
+.asof {
+  display: inline-block; font-size: 12.5px; color: var(--slate);
+  background: var(--surface); border: 1px solid var(--ring);
+  border-radius: 999px; padding: 4px 13px;
+}
+.asof strong { color: var(--basalt); font-weight: 600; }
+
+/* ---- disclosure banner (brief §8.1) ---------------------------------- */
+.disclosure-banner {
+  background: #FFFDF6;
+  border: 1px solid rgba(156, 122, 32, 0.35);
+  border-left: 4px solid var(--lichen);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 22px 0 8px;
+  font-size: 14px;
+  color: var(--basalt);
+  max-width: 82ch;
+}
+.disclosure-banner strong { font-weight: 650; }
+
+/* ---- sections -------------------------------------------------------- */
+section { scroll-margin-top: 20px; }
+h2 {
+  font-family: var(--serif);
+  font-size: clamp(20px, 3vw, 25px);
+  font-weight: 600; margin: 46px 0 6px; line-height: 1.2;
+}
+h3 { font-size: 16px; font-weight: 650; margin: 26px 0 4px; }
+.section-note { color: var(--slate); font-size: 13.5px; margin: 0 0 16px; max-width: 78ch; }
+p { max-width: 76ch; }
+
+.thesis {
+  border-left: 4px solid var(--evergreen);
+  padding: 4px 0 4px 22px; margin: 20px 0 8px;
+}
+.thesis p {
+  font-family: var(--serif);
+  font-size: clamp(17px, 2.4vw, 21px);
+  line-height: 1.45; margin: 0 0 14px; max-width: 60ch;
+}
+.thesis p:last-child { margin-bottom: 0; }
+.thesis strong { color: var(--evergreen); font-weight: 650; }
+
+/* ---- stat tiles (Rule 0.3 signature class) ---------------------------- */
+.kpi-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  margin: 18px 0 6px;
+}
+.kpi {
+  background: var(--surface); border: 1px solid var(--ring);
+  border-radius: 10px; padding: 16px 18px 14px;
+}
+.kpi .label { font-size: 13px; color: var(--slate); margin: 0 0 4px; }
+.kpi .value {
+  font-size: 30px; font-weight: 650; margin: 0; line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.kpi .value .unit { font-size: 15px; font-weight: 500; color: var(--slate); }
+.kpi .foot { margin-top: 8px; font-size: 12px; color: var(--slate); }
+.kpi.certified { border-left: 4px solid var(--evergreen); }
+.kpi.exploratory { border-left: 4px solid var(--rain); }
+
+.tier-tag {
+  display: inline-block; font-size: 11px; letter-spacing: 0.06em;
+  text-transform: uppercase; font-weight: 650; padding: 1px 7px;
+  border-radius: 4px; vertical-align: 2px;
+}
+.tier-tag.certified   { background: #E6F2EB; color: #14603A; }
+.tier-tag.exploratory { background: #EDEFEE; color: #4A544F; }
+
+/* ---- charts ---------------------------------------------------------- */
+.chart-block {
+  background: var(--surface); border: 1px solid var(--ring);
+  border-radius: 10px; padding: 16px 16px 10px; margin: 18px 0 0;
+  min-width: 0;
+}
+.chart-grid {
+  display: grid; gap: 16px; grid-template-columns: 1fr 1fr; margin-top: 18px;
+}
+@media (max-width: 860px) { .chart-grid { grid-template-columns: 1fr; } }
+.chart-grid .chart-block { margin-top: 0; }
+
+/* min-width:0 lets the grid item shrink below the canvas's intrinsic width;
+   without it the fixed-size ECharts canvas holds the card open and the page
+   scrolls sideways on a phone. */
+.chart { width: 100%; height: 320px; min-width: 0; }
+.chart-tall { height: 400px; }
+
+.chart-summary {
+  font-size: 13px; color: var(--slate); margin: 0 0 10px;
+  max-width: 80ch;
+}
+
+details.data-table { margin: 8px 0 4px; }
+details.data-table > summary {
+  cursor: pointer; font-size: 13px; color: var(--evergreen);
+  font-weight: 600; padding: 4px 0; min-height: 24px;
+}
+details.data-table > summary:hover { text-decoration: underline; }
+.table-scroll { overflow-x: auto; margin-top: 8px; }
+table {
+  border-collapse: collapse; width: 100%; font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+caption {
+  text-align: left; font-size: 12.5px; color: var(--slate);
+  padding: 0 0 6px; max-width: 78ch;
+}
+th, td { padding: 5px 10px; text-align: right; border-bottom: 1px solid var(--mist); }
+th { font-weight: 650; color: var(--basalt); border-bottom: 2px solid var(--rain); }
+th[scope="row"], td:first-child, th:first-child { text-align: left; }
+tbody tr:hover { background: #F3F5F3; }
+
+/* ---- register -------------------------------------------------------- */
+.register-table td:first-child { font-weight: 600; }
+.register-table .why { color: var(--slate); font-size: 12px; max-width: 46ch; }
+
+/* ---- method & limits ------------------------------------------------- */
+.method, .limits {
+  background: var(--surface); border: 1px solid var(--ring);
+  border-radius: 10px; padding: 8px 24px 18px; margin-top: 16px;
+  font-size: 14px; color: var(--basalt);
+}
+.limits { border-left: 4px solid var(--madrona); }
+.method h3, .limits h3 { margin-top: 20px; }
+.method ul, .limits ul { padding-left: 1.2em; }
+.method li, .limits li { margin: 8px 0; max-width: 86ch; }
+.method code, .limits code {
+  overflow-wrap: anywhere; font-size: 12.5px;
+  background: #EFF1EF; padding: 1px 5px; border-radius: 3px;
+}
+
+.footer {
+  margin: 40px 0 0; padding-top: 18px; border-top: 1px solid var(--mist);
+  font-size: 12.5px; color: var(--slate); max-width: 88ch;
+}
+
+.fallback-note { color: var(--slate); font-size: 13px; padding: 14px 8px; }
+
+/* Rule 5.6 — honour reduced motion at the page level too. */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* Rule 5.3 / 1.4.10 — reflow at 320 CSS px with no two-dimensional scrolling. */
+@media (max-width: 520px) {
+  .wrap { padding: 0 14px 40px; }
+  .chart { height: 290px; }
+  .method, .limits { padding: 8px 16px 16px; }
+}

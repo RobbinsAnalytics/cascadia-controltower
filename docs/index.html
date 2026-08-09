@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cascadia Control Tower — three fill rates, one dataset, and the cost hiding between them</title>
+<meta name="description" content="A distribution-centre governance module: order, line and unit fill computed from one dataset, why they disagree, and the split-shipment cost that none of them measures. Synthetic operations, three real public anchors.">
+<link rel="stylesheet" href="assets/cascadia-controltower.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="wrap">
+
+<header class="site-head">
+  <p class="kicker">Cascadia Portfolio · Module 07 · Distribution-centre governance</p>
+  <h1>Three fill rates, one dataset, and the cost hiding between them</h1>
+  <p class="standfirst">A distribution centre reports 94% to Operations, 92% to the
+  merchant team and 87% to Finance. All three are arithmetically correct. The thing
+  actually costing money is invisible in all three.</p>
+  <p class="asof">Frozen snapshot · <strong>2026-08-08</strong> · seed 20260808</p>
+</header>
+
+<div class="disclosure-banner">
+  <strong>Everything operational in this module was invented by a seeded generator.</strong>
+  Every order, style, size, shipment, labor hour and dollar below is synthetic.
+  <strong>Alder &amp; Vance</strong> and <strong>Off-Main</strong> are invented banners
+  and no real company is the subject of this analysis. It demonstrates a design; it
+  measures nothing real. Three real public datasets — BLS wage data, Census retail
+  inventories and the SEC filings of Macy&rsquo;s, Kohl&rsquo;s and Dillard&rsquo;s —
+  constrain what the generator is allowed to produce, and are named wherever they are used.
+</div>
+
+<main id="main">
+
+<section id="overview">
+  <h2>The operation</h2>
+  <p class="section-note">A single fulfilment centre serving two banners inside a
+  six-node network that also ships from a second FC and four stores. Twenty-four
+  months, August 2024 to July 2026.</p>
+
+  <div class="kpi-grid">
+    <div class="kpi exploratory">
+      <p class="label">Unit fill <span class="tier-tag exploratory">exploratory</span></p>
+      <p class="value">94.3%</p>
+      <p class="foot">What Operations reads. Units shipped over units ordered.</p>
+    </div>
+    <div class="kpi exploratory">
+      <p class="label">Line fill <span class="tier-tag exploratory">exploratory</span></p>
+      <p class="value">91.6%</p>
+      <p class="foot">What the merchant team reads. Lines shipped complete.</p>
+    </div>
+    <div class="kpi certified">
+      <p class="label">Order fill <span class="tier-tag certified">certified</span></p>
+      <p class="value">87.2%</p>
+      <p class="foot">What Finance reads, and the one the business now runs on.</p>
+    </div>
+    <div class="kpi certified">
+      <p class="label">Split rate <span class="tier-tag certified">certified</span></p>
+      <p class="value">11.6%</p>
+      <p class="foot">Orders shipped from more than one node. Counted by node, not parcel.</p>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <p class="label">Orders</p>
+      <p class="value">379,979</p>
+      <p class="foot">621,942 order lines · 6,320 shipped nothing at all</p>
+    </div>
+    <div class="kpi">
+      <p class="label">Shipped sales</p>
+      <p class="value">$79,315,719</p>
+      <p class="foot">At retail, over 24 months</p>
+    </div>
+    <div class="kpi">
+      <p class="label">Split premium</p>
+      <p class="value">$248,933</p>
+      <p class="foot">8.6% of all parcel spend — the leak</p>
+    </div>
+    <div class="kpi">
+      <p class="label">Cost per shipped order</p>
+      <p class="value">$14.49</p>
+      <p class="foot">Parcel plus labor at real BLS Seattle wages</p>
+    </div>
+  </div>
+</section>
+
+<section id="thesis">
+  <h2>The thesis</h2>
+  <div class="thesis">
+    <p>A distribution centre reports <strong>94.3%</strong> fill to Operations,
+    <strong>91.6%</strong> to the merchant team and <strong>87.2%</strong>
+    to Finance. Three numbers, three teams, all arithmetically correct, none reconciled —
+    because <em>order fill</em>, <em>line fill</em> and <em>unit fill</em> are different
+    metrics and nobody ever wrote down which one the business runs on.</p>
+
+    <p>Meanwhile the thing actually costing money is invisible in all three.
+    <strong>An order split across two nodes still counts as filled.</strong> It is 100%
+    filled, on time, in full — and it costs $5.46 more to ship.</p>
+
+    <p>The definitional gap and the economic leak are the same phenomenon.
+    <strong>Fill rate looks healthiest exactly where splitting is worst</strong>, because
+    splitting is <em>how</em> the network achieves fill. The metric meant to measure
+    service is concealing the cost of delivering it.</p>
+  </div>
+  <p>The supply-chain discipline has not settled this. Fill rate resolves at least three
+  ways, and published guidance states plainly that there is no agreed OTIF formula
+  because the calculation depends on which point of view you are measuring and the level
+  at which the data is stored. This module is not inventing a strawman; it is naming a
+  documented condition of the field and then resolving it for one operation.</p>
+</section>
+
+<section id="register">
+  <h2>The certified metric register</h2>
+  <p class="section-note">Generated from the <code>meta</code> blocks on the dbt models
+  that compute these metrics — the same file that defines their tests. Nothing here is
+  typed twice, and <code>build_metric_register.py --check</code> fails the build if a
+  definition drifts from the model behind it.</p>
+
+  <p><strong>Certification is not a ranking.</strong> An exploratory metric is not a bad
+  metric; it is one the business has agreed not to run on. Retaining the other two
+  definitions and labelling them <em>is</em> the governance act — deleting them would
+  move the disagreement rather than resolve it.</p>
+
+  <div class="table-scroll">
+    <table class="register-table">
+      <caption>Eleven metrics. Order fill is certified as the service number; line and
+      unit fill are retained as diagnostics with the reason stated.</caption>
+      <thead><tr>
+        <th scope="col">Metric</th><th scope="col">Tier</th><th scope="col">Grain</th>
+        <th scope="col">Owner</th><th scope="col">Why this tier</th>
+      </tr></thead>
+      <tbody><tr><td>Cost per order</td><td><span class='tier-tag certified'>certified</span></td><td>Order</td><td>Fulfillment finance</td><td class='why'>An order with no parcel has no parcel cost. Including it would divide real cost across unreal volume and quietly flatter the figure.</td></tr><tr><td>Dock-to-stock</td><td><span class='tier-tag certified'>certified</span></td><td>Receipt</td><td>Inbound operations</td><td class='why'>Stock that has arrived but is not put away cannot fill an order, so this sits upstream of every fill rate on the register.</td></tr><tr><td>Inventory / sales ratio</td><td><span class='tier-tag certified'>certified</span></td><td>Month, whole network</td><td>Inventory planning</td><td class='why'>The only metric here checked directly against a real published series. It sits below the Census sector band by design, because this is a fulfillment network and the sector figure includes store selling floors.</td></tr><tr><td>On-time ship</td><td><span class='tier-tag certified'>certified</span></td><td>Order line</td><td>DC operations</td><td class='why'>An unshipped line is a fill failure, not a lateness failure. Counting it in both would charge one miss to two metrics, which is exactly the double-counting this module exists to surface.</td></tr><tr><td>Order fill</td><td><span class='tier-tag certified'>certified</span></td><td>Order</td><td>Fulfillment governance</td><td class='why'>A customer whose three-line order arrives missing a line did not receive 67% of an order; they received an incomplete order. Order fill is the only definition that says so.</td></tr><tr><td>Split premium</td><td><span class='tier-tag certified'>certified</span></td><td>Order</td><td>Fulfillment finance</td><td class='why'>Split orders are systematically larger baskets. Comparing the average cost of split orders against the average cost of single-node orders compares two different populations and flatters the split.</td></tr><tr><td>Split rate</td><td><span class='tier-tag certified'>certified</span></td><td>Order</td><td>Network planning</td><td class='why'>Node count responds to the allocation decision under review. Parcel count also responds to carton sizing and packaging rules, which are a different problem with a different owner.</td></tr><tr><td>Units per labor hour</td><td><span class='tier-tag certified'>certified</span></td><td>Month x warehouse function</td><td>DC operations</td><td class='why'>Costed at BLS Occupational Employment and Wage Statistics medians for the Seattle-Tacoma-Bellevue metro, May 2025, so cost per order is a real regional number rather than an invented rate.</td></tr><tr><td>Counterfactual unit fill</td><td><span class='tier-tag exploratory'>exploratory</span></td><td>Unit</td><td>Fulfillment governance</td><td class='why'>A modelled alternative history, not a measurement. It prices the governance decision and must never be reported as achieved service.</td></tr><tr><td>Line fill</td><td><span class='tier-tag exploratory'>exploratory</span></td><td>Order line</td><td>Merchandising analytics</td><td class='why'>Useful as an assortment-coverage diagnostic, and it is what the merchant team has always read. Retaining it and labelling it is the governance act; quietly deleting it would move the disagreement rather than resolve it.</td></tr><tr><td>Unit fill</td><td><span class='tier-tag exploratory'>exploratory</span></td><td>Unit</td><td>Operations</td><td class='why'>The most forgiving of the three and therefore the one most often quoted upward. Retained as a depth-of-stock diagnostic, explicitly not as the service number.</td></tr></tbody>
+    </table>
+  </div>
+
+  <h3>The pathology this replaced</h3>
+  <p>Before certification there were three fill rates in circulation and no statement of
+  which one the business ran on. Each was defensible to the team that built it: Operations
+  measured what physically moved, merchandising measured assortment coverage, Finance
+  measured whether the customer got what they asked for.</p>
+  <p>The cost was not licences or dashboards. It was that <strong>the three teams could
+  not have the same conversation about the same week.</strong> Operations reported service
+  improving while Finance reported it flat, both were arithmetically correct, the meeting
+  resolved nothing — and the split rate, which none of the three measured, went
+  unexamined for the entire period.</p>
+</section>
+
+<section id="analysis">
+  <h2>What the data shows</h2>
+  <p class="section-note">Descriptive, then diagnostic, then prescriptive. Every chart
+  carries its own data table and its own provenance.</p>
+
+  <h3>Descriptive — the three rates never meet</h3>
+  
+      <div class="chart-block">
+        <p class="chart-summary" id="c-fills-summary">Line chart. Three series over 24 months, August 2024 to July 2026. Vertical axis is percent, 80 to 100. Unit fill ranges 93.4 to 95.2 percent, line fill 90.4 to 92.7, order fill 85.6 to 88.6. The three series do not cross at any point.</p>
+        <div class="chart chart-tall" id="c-fills"></div>
+        <details class="data-table">
+          <summary>Show the data behind this chart</summary>
+          <div class='table-scroll'><table id='tbl-fills'><caption>Monthly fill rates, all banners. Unit fill counts units; line fill counts lines shipped complete; order fill counts orders shipped complete. Orders that shipped nothing remain in every denominator.</caption><thead><tr><th scope='col'>Month</th><th scope='col'>Orders</th><th scope='col'>Unit fill</th><th scope='col'>Line fill</th><th scope='col'>Order fill</th></tr></thead><tbody><tr><th scope='row'>2024-08</th><td>14,838</td><td>96.2%</td><td>94.4%</td><td>91.2%</td></tr><tr><th scope='row'>2024-09</th><td>14,363</td><td>95.8%</td><td>93.6%</td><td>90.1%</td></tr><tr><th scope='row'>2024-10</th><td>16,717</td><td>94.7%</td><td>92.1%</td><td>87.7%</td></tr><tr><th scope='row'>2024-11</th><td>24,260</td><td>89.1%</td><td>84.9%</td><td>77.9%</td></tr><tr><th scope='row'>2024-12</th><td>23,312</td><td>90.3%</td><td>86.1%</td><td>79.5%</td></tr><tr><th scope='row'>2025-01</th><td>13,597</td><td>95.5%</td><td>93.3%</td><td>89.8%</td></tr><tr><th scope='row'>2025-02</th><td>11,678</td><td>96.6%</td><td>95.1%</td><td>92.2%</td></tr><tr><th scope='row'>2025-03</th><td>13,679</td><td>96.1%</td><td>94.2%</td><td>90.7%</td></tr><tr><th scope='row'>2025-04</th><td>13,779</td><td>96.2%</td><td>94.5%</td><td>91.3%</td></tr><tr><th scope='row'>2025-05</th><td>15,026</td><td>95.5%</td><td>93.0%</td><td>89.3%</td></tr><tr><th scope='row'>2025-06</th><td>13,869</td><td>96.0%</td><td>93.9%</td><td>90.4%</td></tr><tr><th scope='row'>2025-07</th><td>15,152</td><td>95.9%</td><td>93.7%</td><td>90.1%</td></tr><tr><th scope='row'>2025-08</th><td>14,951</td><td>95.2%</td><td>92.8%</td><td>88.7%</td></tr><tr><th scope='row'>2025-09</th><td>14,584</td><td>95.6%</td><td>93.4%</td><td>89.6%</td></tr><tr><th scope='row'>2025-10</th><td>16,393</td><td>94.7%</td><td>92.0%</td><td>87.7%</td></tr><tr><th scope='row'>2025-11</th><td>24,138</td><td>89.6%</td><td>85.6%</td><td>79.0%</td></tr><tr><th scope='row'>2025-12</th><td>22,903</td><td>91.0%</td><td>87.2%</td><td>81.1%</td></tr><tr><th scope='row'>2026-01</th><td>13,553</td><td>95.3%</td><td>93.0%</td><td>89.2%</td></tr><tr><th scope='row'>2026-02</th><td>11,269</td><td>96.7%</td><td>95.0%</td><td>92.1%</td></tr><tr><th scope='row'>2026-03</th><td>14,122</td><td>96.4%</td><td>94.4%</td><td>91.2%</td></tr><tr><th scope='row'>2026-04</th><td>14,160</td><td>95.3%</td><td>93.0%</td><td>89.1%</td></tr><tr><th scope='row'>2026-05</th><td>14,522</td><td>95.3%</td><td>92.8%</td><td>88.8%</td></tr><tr><th scope='row'>2026-06</th><td>14,095</td><td>95.8%</td><td>93.6%</td><td>90.0%</td></tr><tr><th scope='row'>2026-07</th><td>15,019</td><td>95.4%</td><td>93.0%</td><td>89.0%</td></tr></tbody></table></div>
+        </details>
+      </div>
+
+  <p>The gap is 7.0 points between the most forgiving definition and the strictest.
+  It is not measurement error and it is not a reconciliation problem: each rate is a
+  different question asked of the same shipped quantities. Order fill is arithmetically
+  the lowest of the three in every period, because an order counts as filled only if
+  every line in it is.</p>
+
+  <h3>Diagnostic — splitting is how the network achieves fill</h3>
+  
+      <div class="chart-block">
+        <p class="chart-summary" id="c-cf-summary">Line chart. Two series over 24 months. Vertical axis is percent, 88 to 98. Unit fill as achieved runs above unit fill under a single-node-only rule in every month; the vertical distance between them ranges from about 2.2 to 3.1 percentage points.</p>
+        <div class="chart chart-tall" id="c-cf"></div>
+        <details class="data-table">
+          <summary>Show the data behind this chart</summary>
+          <div class='table-scroll'><table id='tbl-cf'><caption>Unit fill as achieved, against what the same demand would have shipped under a single-node-only rule, evaluated against the inventory position before each real allocation was committed.</caption><thead><tr><th scope='col'>Month</th><th scope='col'>Unit fill</th><th scope='col'>Single-node only</th><th scope='col'>Points bought by splitting</th></tr></thead><tbody><tr><th scope='row'>2024-08</th><td>96.2%</td><td>94.2%</td><td>2.00</td></tr><tr><th scope='row'>2024-09</th><td>95.8%</td><td>93.6%</td><td>2.23</td></tr><tr><th scope='row'>2024-10</th><td>94.7%</td><td>92.1%</td><td>2.56</td></tr><tr><th scope='row'>2024-11</th><td>89.1%</td><td>85.0%</td><td>4.12</td></tr><tr><th scope='row'>2024-12</th><td>90.3%</td><td>86.5%</td><td>3.75</td></tr><tr><th scope='row'>2025-01</th><td>95.5%</td><td>93.0%</td><td>2.48</td></tr><tr><th scope='row'>2025-02</th><td>96.6%</td><td>94.8%</td><td>1.86</td></tr><tr><th scope='row'>2025-03</th><td>96.1%</td><td>94.0%</td><td>2.14</td></tr><tr><th scope='row'>2025-04</th><td>96.2%</td><td>94.4%</td><td>1.80</td></tr><tr><th scope='row'>2025-05</th><td>95.5%</td><td>92.9%</td><td>2.57</td></tr><tr><th scope='row'>2025-06</th><td>96.0%</td><td>93.9%</td><td>2.14</td></tr><tr><th scope='row'>2025-07</th><td>95.9%</td><td>93.6%</td><td>2.30</td></tr><tr><th scope='row'>2025-08</th><td>95.2%</td><td>92.8%</td><td>2.38</td></tr><tr><th scope='row'>2025-09</th><td>95.6%</td><td>93.6%</td><td>1.98</td></tr><tr><th scope='row'>2025-10</th><td>94.7%</td><td>92.1%</td><td>2.61</td></tr><tr><th scope='row'>2025-11</th><td>89.6%</td><td>85.5%</td><td>4.08</td></tr><tr><th scope='row'>2025-12</th><td>91.0%</td><td>87.2%</td><td>3.76</td></tr><tr><th scope='row'>2026-01</th><td>95.3%</td><td>93.1%</td><td>2.22</td></tr><tr><th scope='row'>2026-02</th><td>96.7%</td><td>94.8%</td><td>1.93</td></tr><tr><th scope='row'>2026-03</th><td>96.4%</td><td>94.2%</td><td>2.15</td></tr><tr><th scope='row'>2026-04</th><td>95.3%</td><td>93.1%</td><td>2.19</td></tr><tr><th scope='row'>2026-05</th><td>95.3%</td><td>92.8%</td><td>2.50</td></tr><tr><th scope='row'>2026-06</th><td>95.8%</td><td>93.8%</td><td>1.96</td></tr><tr><th scope='row'>2026-07</th><td>95.4%</td><td>93.1%</td><td>2.25</td></tr></tbody></table></div>
+        </details>
+      </div>
+
+  <p>For every order, the simulation also records what the <em>same order against the
+  same inventory position</em> would have shipped if splitting were forbidden — the best
+  any single node could have done alone, evaluated before the real allocation was
+  committed. Splitting buys <strong>2.65 points of unit fill</strong>. Without that
+  counterfactual, &ldquo;splitting is how the network achieves fill&rdquo; is an
+  assertion; with it, the governance decision has a price.</p>
+
+  
+      <div class="chart-block">
+        <p class="chart-summary" id="c-vel-summary">Grouped bar chart. Three velocity bands on the horizontal axis, two bars each. Vertical axis is percent of order lines, 0 to 20. Both series increase from band A to band C.</p>
+        <div class="chart" id="c-vel"></div>
+        <details class="data-table">
+          <summary>Show the data behind this chart</summary>
+          <div class='table-scroll'><table id='tbl-vel'><caption>Order lines by SKU velocity band. A-band styles are ranged at six nodes, B-band at four, C-band at two.</caption><thead><tr><th scope='col'>Velocity band</th><th scope='col'>Lines</th><th scope='col'>Ships partial</th><th scope='col'>Ships zero</th><th scope='col'>Uses >1 node</th><th scope='col'>Unit fill</th></tr></thead><tbody><tr><th scope='row'>A · fast</th><td>433,516</td><td>4.44%</td><td>1.98%</td><td>4.15%</td><td>95.9%</td></tr><tr><th scope='row'>B · mid</th><td>138,070</td><td>8.37%</td><td>4.49%</td><td>10.15%</td><td>90.8%</td></tr><tr><th scope='row'>C · slow</th><td>50,356</td><td>9.47%</td><td>3.66%</td><td>17.07%</td><td>89.8%</td></tr></tbody></table></div>
+        </details>
+      </div>
+
+  <p>Shortfall and splitting are not two problems. They are two symptoms of one
+  condition: inventory fragmented relative to what customers actually put in a basket.
+  Slow-moving styles are ranged at two nodes rather than six, so a basket containing one
+  either reaches for a second node or goes short — and which of those happens is a matter
+  of luck, not of policy.</p>
+
+  <h3>The second finding — the same rule, two different economics</h3>
+  
+      <div class="chart-block">
+        <p class="chart-summary" id="c-econ-summary">Bar chart. Two banners on the horizontal axis. Vertical axis is the split premium as a percent of gross margin on split orders, 0 to 15.</p>
+        <div class="chart" id="c-econ"></div>
+        <details class="data-table">
+          <summary>Show the data behind this chart</summary>
+          <div class='table-scroll'><table id='tbl-econ'><caption>Split economics by banner. The split premium is the incremental parcel cost of fragmenting an order &mdash; actual parcel cost minus what the same shipped units would have cost in one parcel. Orders that shipped nothing are excluded.</caption><thead><tr><th scope='col'>Banner</th><th scope='col'>Fulfilment</th><th scope='col'>Orders</th><th scope='col'>Avg order value</th><th scope='col'>Avg parcel cost</th><th scope='col'>Avg split premium</th><th scope='col'>Avg gross margin</th><th scope='col'>Premium as % of margin</th></tr></thead><tbody><tr><th scope='row'>Off-Main</th><td>single node</td><td>190,142</td><td>$115.55</td><td>$7.00</td><td>$0.03</td><td>$34.90</td><td>0.2%</td></tr><tr><th scope='row'>Off-Main</th><td>split</td><td>26,757</td><td>$237.51</td><td>$15.23</td><td>$5.64</td><td>$71.73</td><td>12.1%</td></tr><tr><th scope='row'>Alder & Vance</th><td>single node</td><td>139,393</td><td>$285.12</td><td>$6.60</td><td>$0.02</td><td>$109.77</td><td>0.1%</td></tr><tr><th scope='row'>Alder & Vance</th><td>split</td><td>17,367</td><td>$647.57</td><td>$14.01</td><td>$5.18</td><td>$249.31</td><td>3.6%</td></tr></tbody></table></div>
+        </details>
+      </div>
+
+  <p>The dollar cost of a split barely differs between the banners. Its consequence
+  differs by more than three times, because it is charged against a margin that differs by
+  more than three times. A split that is a rounding error on a premium order is a material
+  loss on an off-price one.</p>
+  <p><strong>There is therefore no single correct split threshold.</strong> That is a
+  governance finding, not a modelling inconvenience: any single network-wide rule is
+  simultaneously too aggressive for one banner and too permissive for the other.</p>
+
+  <h3>Prescriptive — priced, with the residual reported as a residual</h3>
+  
+      <div class="chart-block">
+        <p class="chart-summary" id="c-thr-summary">Line chart. Nine cost thresholds from $4 to $20 on the horizontal axis. Vertical axis is the percent of that banner's split orders whose premium exceeds the threshold, 0 to 100. Both series fall as the threshold rises.</p>
+        <div class="chart" id="c-thr"></div>
+        <details class="data-table">
+          <summary>Show the data behind this chart</summary>
+          <div class='table-scroll'><table id='tbl-thr'><caption>Split orders whose premium exceeds each threshold &mdash; the orders a policy at that threshold would hold as exceptions. Units at risk are units that shipped only because the order was split.</caption><thead><tr><th scope='col'>Threshold</th><th scope='col'>Off-Main orders</th><th scope='col'>% of Off-Main splits</th><th scope='col'>Alder &amp; Vance orders</th><th scope='col'>% of A&amp;V splits</th><th scope='col'>Units at risk</th></tr></thead><tbody><tr><th scope='row'>$4</th><td>26,757</td><td>100.0%</td><td>17,367</td><td>100.0%</td><td>49,487</td></tr><tr><th scope='row'>$5</th><td>5,464</td><td>20.4%</td><td>2,426</td><td>14.0%</td><td>14,944</td></tr><tr><th scope='row'>$6</th><td>5,464</td><td>20.4%</td><td>2,426</td><td>14.0%</td><td>14,944</td></tr><tr><th scope='row'>$7</th><td>3,444</td><td>12.9%</td><td>1,497</td><td>8.6%</td><td>11,709</td></tr><tr><th scope='row'>$8</th><td>3,444</td><td>12.9%</td><td>1,497</td><td>8.6%</td><td>11,709</td></tr><tr><th scope='row'>$10</th><td>3,227</td><td>12.1%</td><td>1,322</td><td>7.6%</td><td>11,317</td></tr><tr><th scope='row'>$12</th><td>1,834</td><td>6.9%</td><td>782</td><td>4.5%</td><td>7,361</td></tr><tr><th scope='row'>$15</th><td>963</td><td>3.6%</td><td>360</td><td>2.1%</td><td>4,683</td></tr><tr><th scope='row'>$20</th><td>247</td><td>0.9%</td><td>90</td><td>0.5%</td><td>1,533</td></tr></tbody></table></div>
+        </details>
+      </div>
+
+  <p><strong>The recommendation: set the threshold per banner, not per network.</strong>
+  Holding Off-Main splits above $6 as exceptions would catch
+  5,464 orders carrying $58,218 of split premium. Applying the same rule to
+  Alder &amp; Vance would catch 2,426 orders and save $25,048,
+  while risking margin that comfortably absorbs the cost.</p>
+
+  <p>The saving is not free and the page will not pretend otherwise. Those orders shipped
+  complete <em>because</em> they were split. Holding them puts
+  <strong>14,944 units at risk</strong> of shipping short, which would move
+  the certified metric — order fill — in the wrong direction. The decision is a trade
+  between a measured cost and a measured service loss, and the register now shows both
+  next to each other, which it could not do before.</p>
+
+  <p><strong>The residual, stated as a residual.</strong> A per-banner threshold at
+  $6 addresses $83,266 of the $248,933 total split premium.
+  <strong>$165,667 remains</strong>, in splits too small individually to hold but
+  numerous enough to matter in aggregate. Nothing in this analysis explains that portion
+  away, and no allocation rule tested here removes it. It is reported rather than
+  absorbed into the recommendation.</p>
+
+  <h3>Where the cost actually lands</h3>
+  
+      <div class="chart-block">
+        <p class="chart-summary" id="c-nodes-summary">Bar chart. Six fulfilment nodes on the horizontal axis, ordered by cost rank. Vertical axis is parcel cost per unit in dollars.</p>
+        <div class="chart" id="c-nodes"></div>
+        <details class="data-table">
+          <summary>Show the data behind this chart</summary>
+          <div class='table-scroll'><table id='tbl-nodes'><caption>Volume and parcel cost by fulfilment node over 24 months.</caption><thead><tr><th scope='col'>Node</th><th scope='col'>Type</th><th scope='col'>Shipments</th><th scope='col'>Units</th><th scope='col'>Parcel cost</th><th scope='col'>Cost per unit</th></tr></thead><tbody><tr><th scope='row'>Cascade Ridge FC</th><td>FC</td><td>344,371</td><td>1,460,609</td><td>$2,403,591</td><td>$1.65</td></tr><tr><th scope='row'>Fernhill FC</th><td>FC</td><td>63,403</td><td>166,876</td><td>$379,266</td><td>$2.27</td></tr><tr><th scope='row'>Store 101</th><td>STORE</td><td>6,408</td><td>13,117</td><td>$47,862</td><td>$3.65</td></tr><tr><th scope='row'>Store 102</th><td>STORE</td><td>4,044</td><td>7,484</td><td>$29,713</td><td>$3.97</td></tr><tr><th scope='row'>Store 103</th><td>STORE</td><td>3,190</td><td>5,653</td><td>$23,283</td><td>$4.12</td></tr><tr><th scope='row'>Store 104</th><td>STORE</td><td>2,573</td><td>4,559</td><td>$18,779</td><td>$4.12</td></tr></tbody></table></div>
+        </details>
+      </div>
+</section>
+
+<section id="plausible">
+  <h2>Is this world plausible?</h2>
+  <p class="section-note">The operational data is invented, so the question a sceptical
+  reader should ask is whether the generator produced a world a real department store
+  would recognise. Three audits check it against real published data, and each one is
+  written so that it can fail.</p>
+
+  
+      <div class="chart-block">
+        <p class="chart-summary" id="c-inv-summary">Line chart with a shaded horizontal reference band. Vertical axis is months of sales held in inventory, 0 to 4. The plotted series runs below the shaded band in every month, and falls in November and December of both years.</p>
+        <div class="chart chart-tall" id="c-inv"></div>
+        <details class="data-table">
+          <summary>Show the data behind this chart</summary>
+          <div class='table-scroll'><table id='tbl-inv'><caption>End-of-month inventory valued at cost over that month&rsquo;s sales at retail, matching the Census Monthly Retail Trade Survey convention. The sector band is the seasonally adjusted department-store range, 2015&ndash;2026, excluding the March&ndash;May 2020 store closures.</caption><thead><tr><th scope='col'>Month</th><th scope='col'>Inventory at cost</th><th scope='col'>Sales at retail</th><th scope='col'>Inventory / sales</th></tr></thead><tbody><tr><th scope='row'>2024-08</th><td>$2,959,250</td><td>$3,151,995</td><td>0.939</td></tr><tr><th scope='row'>2024-09</th><td>$3,326,054</td><td>$3,058,557</td><td>1.087</td></tr><tr><th scope='row'>2024-10</th><td>$2,882,052</td><td>$3,542,385</td><td>0.814</td></tr><tr><th scope='row'>2024-11</th><td>$2,541,245</td><td>$4,774,339</td><td>0.532</td></tr><tr><th scope='row'>2024-12</th><td>$2,908,922</td><td>$4,698,237</td><td>0.619</td></tr><tr><th scope='row'>2025-01</th><td>$3,098,022</td><td>$2,901,946</td><td>1.068</td></tr><tr><th scope='row'>2025-02</th><td>$3,142,482</td><td>$2,461,376</td><td>1.277</td></tr><tr><th scope='row'>2025-03</th><td>$3,358,448</td><td>$2,843,665</td><td>1.181</td></tr><tr><th scope='row'>2025-04</th><td>$3,106,254</td><td>$2,859,208</td><td>1.086</td></tr><tr><th scope='row'>2025-05</th><td>$2,959,598</td><td>$3,151,228</td><td>0.939</td></tr><tr><th scope='row'>2025-06</th><td>$3,294,041</td><td>$3,016,941</td><td>1.092</td></tr><tr><th scope='row'>2025-07</th><td>$3,001,143</td><td>$3,222,359</td><td>0.931</td></tr><tr><th scope='row'>2025-08</th><td>$3,313,510</td><td>$3,146,041</td><td>1.053</td></tr><tr><th scope='row'>2025-09</th><td>$3,150,426</td><td>$3,099,916</td><td>1.016</td></tr><tr><th scope='row'>2025-10</th><td>$2,990,229</td><td>$3,427,025</td><td>0.873</td></tr><tr><th scope='row'>2025-11</th><td>$3,011,537</td><td>$4,786,916</td><td>0.629</td></tr><tr><th scope='row'>2025-12</th><td>$2,791,483</td><td>$4,536,824</td><td>0.615</td></tr><tr><th scope='row'>2026-01</th><td>$3,016,614</td><td>$2,898,750</td><td>1.041</td></tr><tr><th scope='row'>2026-02</th><td>$3,075,516</td><td>$2,420,431</td><td>1.271</td></tr><tr><th scope='row'>2026-03</th><td>$3,206,888</td><td>$3,002,621</td><td>1.068</td></tr><tr><th scope='row'>2026-04</th><td>$3,012,419</td><td>$3,050,647</td><td>0.987</td></tr><tr><th scope='row'>2026-05</th><td>$3,322,861</td><td>$3,069,347</td><td>1.083</td></tr><tr><th scope='row'>2026-06</th><td>$3,180,000</td><td>$3,001,132</td><td>1.060</td></tr><tr><th scope='row'>2026-07</th><td>$3,026,301</td><td>$3,193,833</td><td>0.948</td></tr></tbody></table></div>
+        </details>
+      </div>
+
+  <p>The modelled network runs at <strong>0.97 months</strong> of stock against a
+  real department-store band of 2.03&ndash;3.64. <strong>Sitting below the band
+  is the correct answer, not a miss.</strong> The Census series covers entire department
+  stores, most of whose inventory sits on selling floors serving walk-in customers this
+  module never simulates. So the audit asks for the relationship rather than the level:
+  the series must sit strictly inside the sector figure, clear a floor below which the
+  modelled service level would be unattainable, and <em>move with</em> the real series
+  seasonally. It correlates at +0.62 and dips every November and December, exactly as
+  department stores do when peak-season sales outrun the inventory behind them.</p>
+
+  <p>The second audit bounds this DC&rsquo;s operating cost at <strong>6.83%</strong>
+  of shipped sales against the 23.7%&ndash;39.0% SG&amp;A range Macy&rsquo;s,
+  Kohl&rsquo;s and Dillard&rsquo;s actually report. The third requires splitting to be
+  concentrated and directional rather than uniform noise — which is the pattern shown
+  above, and which a generator producing random splits would fail.</p>
+
+  <p><strong>An audit that cannot fail is not an audit.</strong> Each one is a pure
+  function of measured numbers, so the validation suite hands each deliberately wrong
+  values and confirms it trips: inventory inflated past the sector band, seasonality
+  flattened, cost inflated past peer SG&amp;A, cost cut to a rounding error, splits made
+  uniform, and concentration reversed. All six trip, and that result is recorded next to
+  the real one in the validation report.</p>
+</section>
+
+<section id="method">
+  <h2>Data &amp; method</h2>
+  <div class="method">
+    <h3>Whose decision this serves</h3>
+    <ul>
+      <li><strong>The decision.</strong> Whether to certify one fill definition, and
+      where to set the split-cost threshold for each banner.</li>
+      <li><strong>The reader.</strong> A fulfilment leader and a finance partner, both
+      analytics-literate, on a tactical-to-strategic horizon.</li>
+      <li><strong>The benchmark.</strong> Real peer filings and a real federal inventory
+      series for plausibility; an internal counterfactual for the service trade.</li>
+      <li><strong>The action.</strong> Certify order fill; set two thresholds instead of
+      one; put split rate on the same register as fill rate.</li>
+      <li><strong>Refresh.</strong> None. This is a frozen snapshot and says so.</li>
+    </ul>
+
+    <h3>The synthetic spine</h3>
+    <ul>
+      <li>A seeded Python generator, seed <code>20260808</code>. The same seed produces
+      the same content hash, <code>6592611ba17db74bc0201f297742f9fa562ef1304dbdb70e43136d59940aec17</code>, which the validation suite
+      re-checks on every run.</li>
+      <li>Inventory is held per <strong>style and size</strong>. That is what lets the
+      three fill rates differ at all: a line for three units spreads across the size run,
+      so it commonly ships two of three rather than all or nothing. Size brokenness is
+      the commonest reason a real retail line ships incomplete.</li>
+      <li><strong>No order is ever labelled &ldquo;split.&rdquo;</strong> An order splits
+      when the allocator cannot satisfy every line from one node and reaches for a second.
+      The classification is an observed consequence of the documented allocation rule, and
+      <code>validate.py</code> re-derives it from the shipments alone.</li>
+    </ul>
+
+    <h3>The three real anchors</h3>
+    <ul>
+      <li><strong>Labor · BLS Occupational Employment and Wage Statistics</strong>,
+      May 2025, Seattle-Tacoma-Bellevue metro (area 42660). Every labor dollar on this
+      page is costed at a real published wage across the percentile spread, not a median
+      alone:
+      <ul><li><code>53-7062</code> Laborers and Freight, Stock, and Material Movers, Hand &mdash; median <strong>$22.95/hr</strong>, p10 $18.87, p90 $30.00 (anchor)</li><li><code>53-7065</code> Stockers and Order Fillers &mdash; median <strong>$22.52/hr</strong>, p10 $18.52, p90 $27.80 (supporting)</li><li><code>43-5071</code> Shipping, Receiving, and Inventory Clerks &mdash; median <strong>$27.10/hr</strong>, p10 $19.43, p90 $48.45 (supporting)</li><li><code>53-1047</code> First-Line Supervisors of Transportation and Material Moving Workers, Except Aircraft Cargo Handling Supervisors &mdash; median <strong>$36.73/hr</strong>, p10 $25.81, p90 $51.24 (supporting)</li></ul>
+      Total labor: $2,511,713 across 108,132 hours.</li>
+
+      <li><strong>Inventory · US Census Monthly Retail Trade Survey</strong>,
+      department stores, end-of-month inventories and inventories/sales ratios,
+      1992&ndash;2026. The modelled network runs at <strong>0.97 months</strong>
+      against a sector band of 2.03&ndash;3.64.</li>
+
+      <li><strong>P&amp;L plausibility · SEC EDGAR XBRL</strong> for
+      <strong>Macy&rsquo;s, Kohl&rsquo;s and Dillard&rsquo;s</strong>. Their SG&amp;A runs
+      23.7%&ndash;39.0% of revenue; this DC runs at <strong>6.83%</strong>
+      of shipped sales.</li>
+    </ul>
+
+    <h3>Pull once, freeze, commit</h3>
+    <ul>
+      <li>All three anchors are frozen in the repository with a SHA-256 per file.
+      <strong>No build step and no part of this page makes a network call.</strong>
+      ECharts and the chart theme are vendored; the dataset is inlined at build time.</li>
+      <li>XBRL tags drift in two directions and both are handled. Dillard&rsquo;s reports
+      inventory as <code>RetailRelatedInventoryMerchandise</code> where the others use
+      <code>InventoryNet</code>, and all three moved revenue and cost of sales onto
+      different tags mid-history. Every winning tag is recorded in
+      <code>governance/tag_mapping.csv</code>.</li>
+    </ul>
+
+    <h3>The stack, described accurately</h3>
+    <ul>
+      <li>Python generator → DuckDB star schema → <strong>dbt Core</strong> (6 staging
+      views, 9 marts, <strong>69 data tests</strong>) → this static page, with Apache
+      ECharts vendored.</li>
+      <li><strong>The warehouse layer shipped as DuckDB.</strong> BigQuery and Looker
+      Studio are a named, gated Phase&nbsp;2 awaiting a cloud project; when it exists,
+      BigQuery becomes a second output in the dbt profile and the models do not change.
+      Nothing on this page was produced by BigQuery or by Looker Studio, and where that
+      phase is discussed it means <em>Looker Studio</em>, not Looker or LookML.</li>
+      <li>The static page is the durable artifact and survives the warehouse being
+      switched off. That is the reason it exists.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="limits">
+  <h2>Honest limits</h2>
+  <div class="limits">
+    <ul>
+      <li><strong>The operational data is invented, and the generator is not evidence
+      about the world.</strong> It demonstrates a design. Every fill rate, split rate and
+      dollar on this page describes a simulation.</li>
+
+      <li><strong>Two of the three realism audits bound the model rather than matching
+      it, and the reason is scope.</strong> Census inventories cover entire department
+      stores, most of whose stock sits on selling floors serving walk-in customers this
+      module never simulates — so the network holding 0.97 months against a sector
+      band of 2.03&ndash;3.64 is correct, not a miss. Audit A requires the
+      series to sit strictly inside the sector figure, clear a floor, and move with it
+      seasonally. It does all three, and that is a weaker claim than a match.</li>
+
+      <li><strong>Fulfilment cost is not separately disclosed by any public department
+      store.</strong> It sits inside SG&amp;A alongside stores, marketing, occupancy and
+      corporate. Audit B therefore bounds the modelled DC cost by the peer SG&amp;A band
+      rather than matching a reported figure. No amount of care makes an undisclosed
+      number checkable.</li>
+
+      <li><strong>The counterfactual is modelled, not measured.</strong> It is the best
+      any single node could have done against the same inventory position — a defensible
+      alternative history, but an alternative history. It is registered as exploratory
+      and must never be reported as achieved service.</li>
+
+      <li><strong>The calibration source is not named, and that costs reproducibility.</strong>
+      Scale and mix parameters draw on one real department-store operator&rsquo;s published
+      filings. That filer is never named here, so this one input is <em>attested rather
+      than reproducible</em>. The three realism audits deliberately do not depend on it —
+      they run against the Census series and the three named peers, which are frozen and
+      committed in full.</li>
+
+      <li><strong>Returns and reverse logistics are excluded on purpose.</strong> They are
+      the largest documented cost in the research — industry sources put US retail returns
+      around $850&nbsp;billion, roughly 16% of sales, with apparel return rates of 30&ndash;46%
+      and reverse-logistics handling at $20&ndash;30 per return. Including them would double
+      the build. They are the natural Phase&nbsp;2, named rather than quietly omitted.</li>
+
+      <li><strong>Also excluded:</strong> labor scheduling optimisation and network design,
+      which are optimisation problems rather than governance problems; and store-level and
+      merchandising analytics, which would take the module off the DC.</li>
+
+      <li><strong>A target was missed and is reported missed.</strong> The generator aimed
+      for a three-point gap between unit fill and line fill and produced
+      2.65 points. Reaching three would have required roughly one line in ten
+      to ship partially, which is high for an operation with working replenishment.
+      Forcing it would have meant choosing an implausible world to make a headline land,
+      which is the failure this module exists to criticise.</li>
+
+      <li><strong>Definition-of-done item 6 is unmet.</strong> There is no live BigQuery
+      or Looker Studio view, because there is no cloud project yet. Said plainly rather
+      than implied by omission.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<p class="fallback-note" id="chart-fallback" hidden>Charts could not be rendered in this
+browser. Every chart&rsquo;s underlying data is available in full in the tables above.</p>
+
+<footer class="footer">
+  <p><strong>Cascadia Control Tower</strong> · Aaron Robbins · Robbins Analytics ·
+  frozen 2026-08-08. Synthetic operational data for an invented two-banner operation.
+  Macy&rsquo;s, Kohl&rsquo;s and Dillard&rsquo;s are named because they are the real
+  benchmark set; naming a benchmark is not naming a subject. Built to the Cascadia
+  visualization standard v2.2 — every chart title states a finding, every chart carries
+  a real data table, WCAG 2.2 AA throughout.</p>
+</footer>
+
+</div>
+
+<script src="assets/echarts.min.js"></script>
+<script src="assets/cascadia-echarts-theme.js"></script>
+<script>window.CT_DATA = {"fills": [{"year_month": "2024-08", "unit_fill": 0.9618691534399232, "line_fill": 0.9442802003777614, "order_fill": 0.9121175360560723, "cf_unit_fill": 0.9418799191119775, "orders": 14838.0}, {"year_month": "2024-09", "unit_fill": 0.9579111339644899, "line_fill": 0.9363869863013699, "order_fill": 0.9008563670542366, "cf_unit_fill": 0.9355736366111128, "orders": 14363.0}, {"year_month": "2024-10", "unit_fill": 0.9469203805708563, "line_fill": 0.9206736015130574, "order_fill": 0.8773105222228869, "cf_unit_fill": 0.9213692333371852, "orders": 16717.0}, {"year_month": "2024-11", "unit_fill": 0.8910159903790477, "line_fill": 0.8494122977020463, "order_fill": 0.779472382522671, "cf_unit_fill": 0.8498062447107033, "orders": 24260.0}, {"year_month": "2024-12", "unit_fill": 0.9027829925182465, "line_fill": 0.8614481409001957, "order_fill": 0.7951698695950583, "cf_unit_fill": 0.8652460187364354, "orders": 23312.0}, {"year_month": "2025-01", "unit_fill": 0.9548097293681008, "line_fill": 0.9332493135886933, "order_fill": 0.898139295432816, "cf_unit_fill": 0.930040300100352, "orders": 13597.0}, {"year_month": "2025-02", "unit_fill": 0.9662701736750992, "line_fill": 0.9508428436812899, "order_fill": 0.9222469600959068, "cf_unit_fill": 0.947692708624188, "orders": 11678.0}, {"year_month": "2025-03", "unit_fill": 0.9613432623440686, "line_fill": 0.9416129748944679, "order_fill": 0.9073762701951897, "cf_unit_fill": 0.9399832408417524, "orders": 13679.0}, {"year_month": "2025-04", "unit_fill": 0.9622716378585147, "line_fill": 0.9448066446369563, "order_fill": 0.9126932288264751, "cf_unit_fill": 0.9442883672206085, "orders": 13779.0}, {"year_month": "2025-05", "unit_fill": 0.95451457643777, "line_fill": 0.9304793117574764, "order_fill": 0.8929189405031279, "cf_unit_fill": 0.9288161070721378, "orders": 15026.0}, {"year_month": "2025-06", "unit_fill": 0.9600136758512441, "line_fill": 0.9390276068225778, "order_fill": 0.9038863652750739, "cf_unit_fill": 0.9386140768023373, "orders": 13869.0}, {"year_month": "2025-07", "unit_fill": 0.9593324738576136, "line_fill": 0.9367109031503368, "order_fill": 0.9006731784582893, "cf_unit_fill": 0.9363414983526716, "orders": 15152.0}, {"year_month": "2025-08", "unit_fill": 0.9519721378203291, "line_fill": 0.9276529947916666, "order_fill": 0.8872316233027892, "cf_unit_fill": 0.9281803588832196, "orders": 14951.0}, {"year_month": "2025-09", "unit_fill": 0.956158078744339, "line_fill": 0.9337293950297046, "order_fill": 0.8961190345584202, "cf_unit_fill": 0.936317101594654, "orders": 14584.0}, {"year_month": "2025-10", "unit_fill": 0.9468061311755805, "line_fill": 0.9201101928374655, "order_fill": 0.8765326663819923, "cf_unit_fill": 0.9206894283270838, "orders": 16393.0}, {"year_month": "2025-11", "unit_fill": 0.8957752289052902, "line_fill": 0.8560937935225748, "order_fill": 0.7898334576186925, "cf_unit_fill": 0.854962379718229, "orders": 24138.0}, {"year_month": "2025-12", "unit_fill": 0.9100352616029734, "line_fill": 0.8718802890685866, "order_fill": 0.8113347596384753, "cf_unit_fill": 0.8724482988659106, "orders": 22903.0}, {"year_month": "2026-01", "unit_fill": 0.9529706525381805, "line_fill": 0.9296839626912976, "order_fill": 0.8916844978971445, "cf_unit_fill": 0.9307565868215694, "orders": 13553.0}, {"year_month": "2026-02", "unit_fill": 0.9670683964074615, "line_fill": 0.95, "order_fill": 0.9206673174194694, "cf_unit_fill": 0.947781530667076, "orders": 11269.0}, {"year_month": "2026-03", "unit_fill": 0.9637998721811376, "line_fill": 0.9442359943071549, "order_fill": 0.9118396827644809, "cf_unit_fill": 0.9423445631333881, "orders": 14122.0}, {"year_month": "2026-04", "unit_fill": 0.9532587327990322, "line_fill": 0.9303153829650289, "order_fill": 0.8912429378531074, "cf_unit_fill": 0.9313775895962498, "orders": 14160.0}, {"year_month": "2026-05", "unit_fill": 0.9531017885792382, "line_fill": 0.9278838034115858, "order_fill": 0.8881696735986778, "cf_unit_fill": 0.9281151583575971, "orders": 14522.0}, {"year_month": "2026-06", "unit_fill": 0.9575341626325142, "line_fill": 0.936040697421627, "order_fill": 0.8999645264278113, "cf_unit_fill": 0.9379251179606594, "orders": 14095.0}, {"year_month": "2026-07", "unit_fill": 0.9538369133083545, "line_fill": 0.9296182960219037, "order_fill": 0.8900725747386644, "cf_unit_fill": 0.9313703057517948, "orders": 15019.0}], "velocity": [{"velocity_band": "A", "lines": 433516.0, "pct_partial": 4.442511925742072, "pct_zero": 1.9823951134444864, "pct_multi_node": 4.154633277664492, "unit_fill": 0.9585223754114924}, {"velocity_band": "B", "lines": 138070.0, "pct_partial": 8.369667559933367, "pct_zero": 4.487578764394872, "pct_multi_node": 10.151372492214094, "unit_fill": 0.9084564281520264}, {"velocity_band": "C", "lines": 50356.0, "pct_partial": 9.466597823496704, "pct_zero": 3.6639129398681387, "pct_multi_node": 17.06648661529907, "unit_fill": 0.8978077547948771}], "economics": [{"banner_name": "Off-Main", "banner": "offprice", "classification": "single_node", "orders": 190142, "avg_order_value": 115.55119526459134, "avg_parcel_cost": 7.004471552840346, "avg_split_premium": 0.02590984632537755, "total_split_premium": 4926.549999999938, "avg_gross_margin": 34.89645990890953, "split_premium_pct_of_margin": 0.001971133948829049, "cost_per_order": 7.004471552840346}, {"banner_name": "Off-Main", "banner": "offprice", "classification": "split", "orders": 26757, "avg_order_value": 237.51162200545662, "avg_parcel_cost": 15.233590836042534, "avg_split_premium": 5.637515416525847, "total_split_premium": 150842.9999999821, "avg_gross_margin": 71.72846096348619, "split_premium_pct_of_margin": 0.12091098585915984, "cost_per_order": 15.233590836042534}, {"banner_name": "Alder & Vance", "banner": "premium", "classification": "single_node", "orders": 139393, "avg_order_value": 285.1156805578514, "avg_parcel_cost": 6.597900970636716, "avg_split_premium": 0.02240284662787948, "total_split_premium": 3122.8000000000047, "avg_gross_margin": 109.76950162489804, "split_premium_pct_of_margin": 0.0006396174211500209, "cost_per_order": 6.597900970636716}, {"banner_name": "Alder & Vance", "banner": "premium", "classification": "split", "orders": 17367, "avg_order_value": 647.5704019116707, "avg_parcel_cost": 14.011863303967216, "avg_split_premium": 5.184597224620988, "total_split_premium": 90040.89999999269, "avg_gross_margin": 249.31459261818398, "split_premium_pct_of_margin": 0.035533943802587196, "cost_per_order": 14.011863303967216}], "threshold": [{"threshold_usd": 4, "banner_name": "Off-Main", "banner": "offprice", "orders_above_threshold": 26757, "pct_of_split_orders": 100.0, "premium_above_threshold": 150843.00000005952, "units_at_risk": 30773.0}, {"threshold_usd": 4, "banner_name": "Alder & Vance", "banner": "premium", "orders_above_threshold": 17367, "pct_of_split_orders": 100.0, "premium_above_threshold": 90040.90000000995, "units_at_risk": 18714.0}, {"threshold_usd": 5, "banner_name": "Off-Main", "banner": "offprice", "orders_above_threshold": 5464, "pct_of_split_orders": 20.4208244571514, "premium_above_threshold": 58218.450000000106, "units_at_risk": 10594.0}, {"threshold_usd": 5, "banner_name": "Alder & Vance", "banner": "premium", "orders_above_threshold": 2426, "pct_of_split_orders": 13.969021707836701, "premium_above_threshold": 25047.550000000167, "units_at_risk": 4350.0}, {"threshold_usd": 6, "banner_name": "Off-Main", "banner": "offprice", "orders_above_threshold": 5464, "pct_of_split_orders": 20.4208244571514, "premium_above_threshold": 58218.450000000106, "units_at_risk": 10594.0}, {"threshold_usd": 6, "banner_name": "Alder & Vance", "banner": "premium", "orders_above_threshold": 2426, "pct_of_split_orders": 13.969021707836701, "premium_above_threshold": 25047.550000000167, "units_at_risk": 4350.0}, {"threshold_usd": 7, "banner_name": "Off-Main", "banner": "offprice", "orders_above_threshold": 3444, "pct_of_split_orders": 12.871398138804798, "premium_above_threshold": 45694.45000000117, "units_at_risk": 8328.0}, {"threshold_usd": 7, "banner_name": "Alder & Vance", "banner": "premium", "orders_above_threshold": 1497, "pct_of_split_orders": 8.619796165140784, "premium_above_threshold": 19287.749999999774, "units_at_risk": 3381.0}, {"threshold_usd": 8, "banner_name": "Off-Main", "banner": "offprice", "orders_above_threshold": 3444, "pct_of_split_orders": 12.871398138804798, "premium_above_threshold": 45694.45000000117, "units_at_risk": 8328.0}, {"threshold_usd": 8, "banner_name": "Alder & Vance", "banner": "premium", "orders_above_threshold": 1497, "pct_of_split_orders": 8.619796165140784, "premium_above_threshold": 19287.749999999774, "units_at_risk": 3381.0}, {"threshold_usd": 10, "banner_name": "Off-Main", "banner": "offprice", "orders_above_threshold": 3227, "pct_of_split_orders": 12.060395410546773, "premium_above_threshold": 43947.60000000095, "units_at_risk": 8129.0}, {"threshold_usd": 10, "banner_name": "Alder & Vance", "banner": "premium", "orders_above_threshold": 1322, "pct_of_split_orders": 7.6121379628030175, "premium_above_threshold": 17878.999999999804, "units_at_risk": 3188.0}, {"threshold_usd": 12, "banner_name": "Off-Main", "banner": "offprice", "orders_above_threshold": 1834, "pct_of_split_orders": 6.8542811226968645, "premium_above_threshold": 29251.450000000357, "units_at_risk": 5256.0}, {"threshold_usd": 12, "banner_name": "Alder & Vance", "banner": "premium", "orders_above_threshold": 782, "pct_of_split_orders": 4.502792652732193, "premium_above_threshold": 12181.999999999953, "units_at_risk": 2105.0}, {"threshold_usd": 15, "banner_name": "Off-Main", "banner": "offprice", "orders_above_threshold": 963, "pct_of_split_orders": 3.5990581903800876, "premium_above_threshold": 18306.750000000055, "units_at_risk": 3436.0}, {"threshold_usd": 15, "banner_name": "Alder & Vance", "banner": "premium", "orders_above_threshold": 360, "pct_of_split_orders": 2.0728968733805493, "premium_above_threshold": 6808.600000000001, "units_at_risk": 1247.0}, {"threshold_usd": 20, "banner_name": "Off-Main", "banner": "offprice", "orders_above_threshold": 247, "pct_of_split_orders": 0.9231229211047577, "premium_above_threshold": 5866.049999999984, "units_at_risk": 1128.0}, {"threshold_usd": 20, "banner_name": "Alder & Vance", "banner": "premium", "orders_above_threshold": 90, "pct_of_split_orders": 0.5182242183451373, "premium_above_threshold": 2114.0500000000015, "units_at_risk": 405.0}], "inventory": [{"year_month": "2024-08", "month": 8, "inventory_at_cost": 2959249.799999998, "sales_at_retail": 3151994.899999989, "inventory_sales_ratio": 0.9388498058800819}, {"year_month": "2024-09", "month": 9, "inventory_at_cost": 3326053.919999999, "sales_at_retail": 3058556.7199999937, "inventory_sales_ratio": 1.087458636372781}, {"year_month": "2024-10", "month": 10, "inventory_at_cost": 2882051.6700000023, "sales_at_retail": 3542385.3000000007, "inventory_sales_ratio": 0.8135906813976451}, {"year_month": "2024-11", "month": 11, "inventory_at_cost": 2541245.399999998, "sales_at_retail": 4774338.670000006, "inventory_sales_ratio": 0.5322717083243688}, {"year_month": "2024-12", "month": 12, "inventory_at_cost": 2908921.7500000005, "sales_at_retail": 4698236.790000017, "inventory_sales_ratio": 0.6191517967318096}, {"year_month": "2025-01", "month": 1, "inventory_at_cost": 3098021.6800000016, "sales_at_retail": 2901946.3100000024, "inventory_sales_ratio": 1.0675668496430588}, {"year_month": "2025-02", "month": 2, "inventory_at_cost": 3142481.920000001, "sales_at_retail": 2461375.589999982, "inventory_sales_ratio": 1.2767177560252085}, {"year_month": "2025-03", "month": 3, "inventory_at_cost": 3358447.760000004, "sales_at_retail": 2843664.9499999834, "inventory_sales_ratio": 1.181027940721365}, {"year_month": "2025-04", "month": 4, "inventory_at_cost": 3106253.669999998, "sales_at_retail": 2859208.1999999834, "inventory_sales_ratio": 1.0864034560337426}, {"year_month": "2025-05", "month": 5, "inventory_at_cost": 2959598.4299999992, "sales_at_retail": 3151227.670000002, "inventory_sales_ratio": 0.939189020893561}, {"year_month": "2025-06", "month": 6, "inventory_at_cost": 3294041.3599999975, "sales_at_retail": 3016940.859999989, "inventory_sales_ratio": 1.091848170997959}, {"year_month": "2025-07", "month": 7, "inventory_at_cost": 3001142.8899999955, "sales_at_retail": 3222359.0299999835, "inventory_sales_ratio": 0.9313496299014238}, {"year_month": "2025-08", "month": 8, "inventory_at_cost": 3313509.540000007, "sales_at_retail": 3146041.4100000137, "inventory_sales_ratio": 1.0532313813377276}, {"year_month": "2025-09", "month": 9, "inventory_at_cost": 3150425.7400000016, "sales_at_retail": 3099915.759999996, "inventory_sales_ratio": 1.0162939847113799}, {"year_month": "2025-10", "month": 10, "inventory_at_cost": 2990229.369999997, "sales_at_retail": 3427025.4399999836, "inventory_sales_ratio": 0.8725436744934146}, {"year_month": "2025-11", "month": 11, "inventory_at_cost": 3011536.7199999974, "sales_at_retail": 4786916.0799999675, "inventory_sales_ratio": 0.6291183446023599}, {"year_month": "2025-12", "month": 12, "inventory_at_cost": 2791482.5100000035, "sales_at_retail": 4536824.429999965, "inventory_sales_ratio": 0.6152943657112216}, {"year_month": "2026-01", "month": 1, "inventory_at_cost": 3016613.6100000003, "sales_at_retail": 2898750.099999986, "inventory_sales_ratio": 1.0406601141643823}, {"year_month": "2026-02", "month": 2, "inventory_at_cost": 3075516.490000001, "sales_at_retail": 2420430.6599999946, "inventory_sales_ratio": 1.270648459724935}, {"year_month": "2026-03", "month": 3, "inventory_at_cost": 3206887.5900000012, "sales_at_retail": 3002621.3900000006, "inventory_sales_ratio": 1.0680292895668744}, {"year_month": "2026-04", "month": 4, "inventory_at_cost": 3012418.510000002, "sales_at_retail": 3050646.9699999974, "inventory_sales_ratio": 0.9874687368365028}, {"year_month": "2026-05", "month": 5, "inventory_at_cost": 3322861.480000001, "sales_at_retail": 3069347.449999977, "inventory_sales_ratio": 1.0825954161690055}, {"year_month": "2026-06", "month": 6, "inventory_at_cost": 3180000.449999999, "sales_at_retail": 3001131.8199999845, "inventory_sales_ratio": 1.0596003910284804}, {"year_month": "2026-07", "month": 7, "inventory_at_cost": 3026300.7199999993, "sales_at_retail": 3193832.5699999826, "inventory_sales_ratio": 0.9475451995907274}], "nodes": [{"node_key": "FC1", "node_name": "Cascade Ridge FC", "node_kind": "FC", "cost_rank": 1, "units": 1460609.0, "shipments": 344371.0, "parcel_cost": 2403591.42999999, "cost_per_unit": 1.6456090781311015}, {"node_key": "FC2", "node_name": "Fernhill FC", "node_kind": "FC", "cost_rank": 2, "units": 166876.0, "shipments": 63403.0, "parcel_cost": 379266.169999999, "cost_per_unit": 2.272742455475916}, {"node_key": "S01", "node_name": "Store 101", "node_kind": "STORE", "cost_rank": 3, "units": 13117.0, "shipments": 6408.0, "parcel_cost": 47862.14000000004, "cost_per_unit": 3.6488633071586523}, {"node_key": "S02", "node_name": "Store 102", "node_kind": "STORE", "cost_rank": 4, "units": 7484.0, "shipments": 4044.0, "parcel_cost": 29712.880000000023, "cost_per_unit": 3.970187065740249}, {"node_key": "S03", "node_name": "Store 103", "node_kind": "STORE", "cost_rank": 5, "units": 5653.0, "shipments": 3190.0, "parcel_cost": 23282.860000000004, "cost_per_unit": 4.118673270829649}, {"node_key": "S04", "node_name": "Store 104", "node_kind": "STORE", "cost_rank": 6, "units": 4559.0, "shipments": 2573.0, "parcel_cost": 18779.18000000001, "cost_per_unit": 4.1191445492432575}], "censusBand": [2.03, 3.64], "censusByMonth": {"1": 3.753, "2": 3.425, "3": 2.945, "4": 2.986, "5": 2.636, "6": 2.905, "7": 2.923, "8": 2.815, "9": 3.548, "10": 3.658, "11": 2.53, "12": 1.39}, "titles": {"fills": "One dataset answers \u201cwhat was our fill rate?\u201d three ways, 7.0 points apart, and every answer is arithmetically correct", "counterfactual": "Forbidding splits would cost 2.7 points of unit fill \u2014 splitting is how the network hits its numbers", "velocity": "Slow movers reach a second node 4.1\u00d7 as often as fast movers and ship short 2.1\u00d7 as often \u2014 one cause, two symptoms", "economics": "The same $5.46 second parcel eats 12% of an off-price order\u2019s margin and 4% of a premium order\u2019s", "threshold": "Above $4, every threshold holds a larger share of Off-Main\u2019s splits than of Alder & Vance\u2019s", "inventory": "The network holds 0.97 months of stock against the sector\u2019s 2.03\u20133.64, and dips in the same season", "nodes": "Stores ship 1.9% of units at 2.4\u00d7 the primary FC\u2019s cost per unit"}};</script>
+<script src="assets/controltower-charts.js"></script>
+</body>
+</html>

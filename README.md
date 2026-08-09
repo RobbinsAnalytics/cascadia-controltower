@@ -152,7 +152,7 @@ keeping transformation in dbt rather than in the page build.
 | Generator and star schema | Complete — `governance/generator_assumptions.md` |
 | `validate.py` and realism audits | Complete — **12/12 green** |
 | dbt on DuckDB + metric register | Complete — **69/69 tests green**, 11 metrics |
-| Static ECharts page | Not started |
+| Static ECharts page | Complete — 7 charts, `docs/index.html` |
 | Reading panel | Not started |
 
 The three fill rates the module is about, as generated:
