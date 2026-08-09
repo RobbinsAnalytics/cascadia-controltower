@@ -132,12 +132,15 @@ PAGE = """<!DOCTYPE html>
   move the disagreement rather than resolve it.</p>
 
   <div class="table-scroll">
-    <table class="register-table">
+    <table class="register-table stacked" role="table">
       <caption>Eleven metrics. Order fill is certified as the service number; line and
       unit fill are retained as diagnostics with the reason stated.</caption>
-      <thead><tr>
-        <th scope="col">Metric</th><th scope="col">Tier</th><th scope="col">Grain</th>
-        <th scope="col">Owner</th><th scope="col">Why this tier</th>
+      <thead><tr role="row">
+        <th scope="col" role="columnheader">Metric</th>
+        <th scope="col" role="columnheader">Tier</th>
+        <th scope="col" role="columnheader">Grain</th>
+        <th scope="col" role="columnheader">Owner</th>
+        <th scope="col" role="columnheader">Why this tier</th>
       </tr></thead>
       <tbody>{register_rows}</tbody>
     </table>

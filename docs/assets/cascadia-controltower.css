@@ -195,7 +195,34 @@ details.data-table > summary {
   font-weight: 600; padding: 4px 0; min-height: 24px;
 }
 details.data-table > summary:hover { text-decoration: underline; }
-.table-scroll { overflow-x: auto; margin-top: 8px; }
+/* ---- A · the scroll is real, so make it visible -----------------------
+   A wide table already scrolls inside its own box rather than pushing the
+   page sideways, but nothing said so. These are scroll shadows: the two
+   `local` gradients scroll away with the content, uncovering the fixed
+   `scroll` shadows only on the side where there is more to see. No JS, and
+   they disappear on their own once a table fits. */
+.table-scroll {
+  overflow-x: auto;
+  margin-top: 8px;
+  background:
+    linear-gradient(to right, var(--surface) 40%, rgba(252, 252, 250, 0)) left center,
+    linear-gradient(to left,  var(--surface) 40%, rgba(252, 252, 250, 0)) right center,
+    radial-gradient(farthest-side at 0 50%, rgba(35, 43, 39, 0.17), transparent) left center,
+    radial-gradient(farthest-side at 100% 50%, rgba(35, 43, 39, 0.17), transparent) right center;
+  background-repeat: no-repeat;
+  background-size: 36px 100%, 36px 100%, 13px 100%, 13px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* Keep the row label in view while scrolling sideways. Only for tables that
+   actually scroll — a stacked table has no horizontal axis to lose. */
+@media (max-width: 860px) {
+  table:not(.stacked) th[scope="row"] {
+    position: sticky; left: 0; z-index: 1;
+    background: var(--surface);
+    box-shadow: 1px 0 0 var(--mist);
+  }
+}
 table {
   border-collapse: collapse; width: 100%; font-size: 12.5px;
   font-variant-numeric: tabular-nums;
@@ -210,8 +237,65 @@ th[scope="row"], td:first-child, th:first-child { text-align: left; }
 tbody tr:hover { background: #F3F5F3; }
 
 /* ---- register -------------------------------------------------------- */
-.register-table td:first-child { font-weight: 600; }
+.register-table th[scope="row"] { font-weight: 650; }
 .register-table .why { color: var(--slate); font-size: 12px; max-width: 46ch; }
+
+/* ---- B · stack the wide tables on a phone ----------------------------
+   Only the WIDE tables carry `.stacked`, and every wide table here happens to
+   be a short one — four rows, six, eleven. The tall 24-row tables are narrow
+   enough to fit already, and stacking those would turn each into 24 blocks.
+
+   The header row is visually hidden rather than removed, and every element
+   carries an explicit ARIA role, because `display: block` strips a table's
+   implicit semantics out of the accessibility tree. These tables are the
+   non-visual route to the data, so a mobile layout that quietly stopped them
+   being tables would be a bad trade. */
+@media (max-width: 560px) {
+  table.stacked thead {
+    position: absolute; width: 1px; height: 1px;
+    margin: -1px; padding: 0; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
+  table.stacked,
+  table.stacked tbody,
+  table.stacked tr,
+  table.stacked th,
+  table.stacked td { display: block; width: auto; }
+
+  /* The caption must be told to be a block too. Left as `table-caption`
+     inside a table that is no longer a table, it gets wrapped in an anonymous
+     table box that shrinks to fit and renders one word per line. */
+  table.stacked caption { display: block; width: auto; }
+
+  table.stacked tr {
+    border: 1px solid var(--ring); border-radius: 8px;
+    padding: 9px 12px 7px; margin: 0 0 10px;
+  }
+  table.stacked th[scope="row"] {
+    position: static;                 /* the sticky rule above does not apply */
+    box-shadow: none;
+    font-size: 14.5px; font-weight: 650; text-align: left;
+    border: 0; border-bottom: 1px solid var(--mist);
+    padding: 0 0 6px; margin: 0 0 6px;
+  }
+  table.stacked td {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 14px; text-align: right;
+    border: 0; padding: 3px 0;
+  }
+  table.stacked td::before {
+    content: attr(data-label);
+    color: var(--slate); font-weight: 500; text-align: left;
+    flex: 0 1 auto; min-width: 0;
+  }
+  /* The register's reason column is prose, not a figure — it reads as a
+     paragraph under its label rather than as a right-aligned value. */
+  table.stacked td.why {
+    display: block; text-align: left; margin-top: 4px;
+  }
+  table.stacked td.why::before { display: block; margin-bottom: 2px; }
+  table.stacked tbody tr:hover { background: none; }
+}
 
 /* ---- method & limits ------------------------------------------------- */
 .method, .limits {

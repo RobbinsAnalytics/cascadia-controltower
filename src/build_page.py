@@ -146,17 +146,39 @@ def money(x, dp=2):
     return f"${x:,.{dp}f}"
 
 
-def table(caption, headers, rows, table_id):
-    """Rule 5.1 layer 2 — a real <table> in the DOM, on the same page."""
-    head = "".join(f"<th scope='col'>{h}</th>" for h in headers)
+def table(caption, headers, rows, table_id, stack=False):
+    """Rule 5.1 layer 2 — a real <table> in the DOM, on the same page.
+
+    Two things here are for narrow screens and neither costs the desktop
+    anything.
+
+    `data-label` carries each cell's column name so the stacked layout can
+    print it beside the value. `stack=True` marks the tables that are wide
+    enough to need it — which, usefully, are all the SHORT ones. The tall
+    24-row tables are narrow and already fit, and stacking those would turn
+    each into 24 blocks.
+
+    The explicit ARIA roles are the important part. Setting `display: block`
+    on table elements is what makes stacking work, and it also strips the
+    implicit table semantics out of the accessibility tree — rows and cells
+    stop being rows and cells. These tables ARE the non-visual route to the
+    data, so losing that would trade a mobile layout problem for an
+    accessibility regression. Redundant roles are normally a smell; here they
+    are what survives the display change.
+    """
+    head = "".join(
+        f"<th scope='col' role='columnheader'>{h}</th>" for h in headers)
     body = "".join(
-        "<tr>" + "".join(
-            (f"<th scope='row'>{c}</th>" if i == 0 else f"<td>{c}</td>")
+        "<tr role='row'>" + "".join(
+            (f"<th scope='row' role='rowheader' data-label='{headers[i]}'>{c}</th>"
+             if i == 0 else f"<td role='cell' data-label='{headers[i]}'>{c}</td>")
             for i, c in enumerate(r)) + "</tr>"
         for r in rows)
-    return (f"<div class='table-scroll'><table id='{table_id}'>"
+    cls = " class='stacked'" if stack else ""
+    return (f"<div class='table-scroll'><table id='{table_id}'{cls} role='table'>"
             f"<caption>{caption}</caption>"
-            f"<thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>")
+            f"<thead><tr role='row'>{head}</tr></thead>"
+            f"<tbody>{body}</tbody></table></div>")
 
 
 def chart_block(cid, summary, table_html, tall=False):
@@ -308,7 +330,7 @@ def render(d):
         [[{"A": "A · fast", "B": "B · mid", "C": "C · slow"}[v["velocity_band"]],
           f"{int(v['lines']):,}", f"{v['pct_partial']:.2f}%", f"{v['pct_zero']:.2f}%",
           f"{v['pct_multi_node']:.2f}%", pct(v["unit_fill"])] for v in d["velocity"]],
-        "tbl-vel")
+        "tbl-vel", stack=True)
 
     t_econ = table(
         "Split economics by banner. The split premium is the incremental parcel cost of "
@@ -321,7 +343,7 @@ def render(d):
           money(e["avg_parcel_cost"]), money(e["avg_split_premium"]),
           money(e["avg_gross_margin"]),
           pct(e["split_premium_pct_of_margin"])] for e in d["economics"]],
-        "tbl-econ")
+        "tbl-econ", stack=True)
 
     thr_by_t = {}
     for r in d["threshold"]:
@@ -339,7 +361,7 @@ def render(d):
           f"{v.get('premium', {}).get('pct_of_split_orders', 0):.1f}%",
           f"{int(v.get('offprice', {}).get('units_at_risk', 0) + v.get('premium', {}).get('units_at_risk', 0)):,}"]
          for t, v in sorted(thr_by_t.items())],
-        "tbl-thr")
+        "tbl-thr", stack=True)
 
     t_inv = table(
         "End-of-month inventory valued at cost over that month&rsquo;s sales at retail, "
@@ -358,14 +380,18 @@ def render(d):
         [[n["node_name"], n["node_kind"], f"{int(n['shipments']):,}",
           f"{int(n['units']):,}", money(n["parcel_cost"], 0),
           money(n["cost_per_unit"])] for n in nodes],
-        "tbl-nodes")
+        "tbl-nodes", stack=True)
 
     # --- register --------------------------------------------------------
     reg_rows = "".join(
-        f"<tr><td>{m['metric']}</td>"
-        f"<td><span class='tier-tag {m['tier']}'>{m['tier']}</span></td>"
-        f"<td>{m['grain']}</td><td>{m['owner']}</td>"
-        f"<td class='why'>{m['tier_reason']}</td></tr>"
+        f"<tr role='row'>"
+        f"<th scope='row' role='rowheader' data-label='Metric'>{m['metric']}</th>"
+        f"<td role='cell' data-label='Tier'>"
+        f"<span class='tier-tag {m['tier']}'>{m['tier']}</span></td>"
+        f"<td role='cell' data-label='Grain'>{m['grain']}</td>"
+        f"<td role='cell' data-label='Owner'>{m['owner']}</td>"
+        f"<td role='cell' data-label='Why this tier' class='why'>"
+        f"{m['tier_reason']}</td></tr>"
         for m in d["register"])
 
     # AXIS BOUNDS ARE COMPUTED, NEVER TYPED.

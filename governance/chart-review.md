@@ -387,6 +387,44 @@ so v2.3 can replace the mechanism without hunting through the file.
 annotations intact, nothing clipped. They are narrow, not broken. Recorded as a
 known limit rather than reported as a pass.
 
+### The data tables (Rule 5.1 layer 2)
+
+The charts were only half the narrow-screen problem. Five of the eight tables
+overflowed their container at 390px — `tbl-econ` at 1.63× and the metric
+register at 1.38× — and scrolled sideways inside a 328px box with no cue that
+they did.
+
+The useful pattern: **every table that is too wide is short, and every tall
+table already fits.** The wide ones are 3–11 rows; the three 24-row tables are
+4–5 columns and fit at 328px.
+
+So the wide tables **stack into labelled rows below 560px** — each row becomes a
+card with its label as a heading and `data-label` printing each column name
+beside its value. The tall ones are left as tables. Above 560px nothing changes
+at all: desktop renders exactly the table it did before.
+
+Underneath that, all tables gained **scroll shadows** — pure-CSS, using
+`background-attachment: local`, so the cue appears only on the side with more
+content and disappears once a table fits — and a **sticky first column** below
+860px so the row label stays in view while scrolling sideways.
+
+**Every element carries an explicit ARIA role.** `display: block` is what makes
+stacking work and it also strips a table's implicit semantics out of the
+accessibility tree. These tables are the non-visual route to the data, so a
+mobile layout that quietly stopped them being tables would trade a layout
+problem for an accessibility regression. Redundant roles are normally a smell;
+here they are what survives the display change.
+
+Two defects found by rendering rather than by reading the CSS: a `caption` left
+as `table-caption` inside a `display: block` table gets wrapped in an anonymous
+box that shrinks to fit and renders **one word per line**; and the register's
+reason column is prose rather than a figure, so it needed to read as a paragraph
+under its label instead of as a right-aligned value.
+
+Verified at 390, 559, 561, 768 and 1440: the breakpoint flips cleanly, no table
+overflows its container at 390, and the page does not scroll sideways at any
+width.
+
 ### Not done, deliberately
 
 The general responsive rule (A1 §2.4), label abbreviation, a legend fallback and
