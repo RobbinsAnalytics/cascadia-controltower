@@ -134,6 +134,21 @@ def fetch(con):
 # Small helpers
 # ---------------------------------------------------------------------------
 
+def asset_version(*names):
+    """Short content hash for the vendored assets, appended to their URLs.
+
+    Without this, a stylesheet change ships inside a page whose URL has not
+    changed, and a browser or CDN happily serves the old one — which presents
+    as a layout bug that cannot be reproduced anywhere else. Hashing the
+    content means the URL changes exactly when the file does.
+    """
+    import hashlib
+    h = hashlib.sha256()
+    for n in names:
+        h.update((DOCS / "assets" / n).read_bytes())
+    return h.hexdigest()[:10]
+
+
 def splits_only(d):
     return [e for e in d["economics"] if e["classification"] == "split"]
 
@@ -457,6 +472,8 @@ def render(d):
 
     return PAGE.format(
         as_of=AS_OF,
+        css_v=asset_version("cascadia-controltower.css"),
+        js_v=asset_version("controltower-charts.js"),
         payload=payload,
         titles=json.dumps(titles),
         # headline figures

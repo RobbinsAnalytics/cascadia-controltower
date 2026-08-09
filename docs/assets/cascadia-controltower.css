@@ -228,6 +228,14 @@ table {
   font-variant-numeric: tabular-nums;
 }
 caption {
+  /* A block, not a `table-caption`, at every width and on every table.
+     Two reasons, and the second is why this is not scoped to the stacked
+     tables: a table-caption inside a table whose display has been changed to
+     block gets wrapped in an anonymous table box that shrinks to fit, and
+     renders one word per line; and on a table that scrolls sideways, a
+     table-caption stretches to the table's full scroll width and scrolls away
+     with it, where a block caption stays put and stays readable. */
+  display: block;
   text-align: left; font-size: 12.5px; color: var(--slate);
   padding: 0 0 6px; max-width: 78ch;
 }
@@ -261,11 +269,6 @@ tbody tr:hover { background: #F3F5F3; }
   table.stacked tr,
   table.stacked th,
   table.stacked td { display: block; width: auto; }
-
-  /* The caption must be told to be a block too. Left as `table-caption`
-     inside a table that is no longer a table, it gets wrapped in an anonymous
-     table box that shrinks to fit and renders one word per line. */
-  table.stacked caption { display: block; width: auto; }
 
   table.stacked tr {
     border: 1px solid var(--ring); border-radius: 8px;

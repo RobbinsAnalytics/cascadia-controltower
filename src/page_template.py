@@ -12,7 +12,7 @@ PAGE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cascadia Control Tower — three fill rates, one dataset, and the cost hiding between them</title>
 <meta name="description" content="A distribution-centre governance module: order, line and unit fill computed from one dataset, why they disagree, and the split-shipment cost that none of them measures. Synthetic operations, three real public anchors.">
-<link rel="stylesheet" href="assets/cascadia-controltower.css">
+<link rel="stylesheet" href="assets/cascadia-controltower.css?v={css_v}">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -417,7 +417,7 @@ browser. Every chart&rsquo;s underlying data is available in full in the tables 
 <script src="assets/echarts.min.js"></script>
 <script src="assets/cascadia-echarts-theme.js"></script>
 <script>window.CT_DATA = {payload};</script>
-<script src="assets/controltower-charts.js"></script>
+<script src="assets/controltower-charts.js?v={js_v}"></script>
 </body>
 </html>
 """
