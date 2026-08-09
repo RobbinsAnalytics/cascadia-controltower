@@ -24,6 +24,7 @@ to survive a rebuild, and it cannot.
 """
 
 import json
+import math
 from datetime import date
 from pathlib import Path
 
@@ -244,12 +245,25 @@ def render(d):
                           f"— splitting is how the network hits its numbers",
         "velocity": f"Slow movers reach a second node {split_ratio:.1f}× as often as fast "
                     f"movers and ship short {short_ratio:.1f}× as often — one cause, two symptoms",
-        "economics": f"The same {money(mean_premium)} second parcel eats "
-                     f"{pct(off['split_premium_pct_of_margin'], 0)} of an off-price order’s margin "
-                     f"and {pct(prem['split_premium_pct_of_margin'], 0)} of a premium order’s",
+        # NOT "the same {mean_premium} parcel". The two banners' premiums are
+        # $5.64 and $5.18 — close, but not equal, and mean_premium is the
+        # order-weighted blend of them. A reading-panel seat asked directly
+        # whether one average had been applied to both banners, which is
+        # exactly what the old title asserted. Both figures are now named.
+        # Percentages carry the same two decimals as the bar labels so a reader
+        # comparing title to mark sees one number, not 4% against 3.55%.
+        "economics": f"Near-identical second parcels — {money(off['avg_split_premium'])} and "
+                     f"{money(prem['avg_split_premium'])} — eat "
+                     f"{pct(off['split_premium_pct_of_margin'], 2)} of an off-price order’s "
+                     f"margin and {pct(prem['split_premium_pct_of_margin'], 2)} of a premium order’s",
         "threshold": threshold_title,
-        "inventory": f"The network holds {inv_mean:.2f} months of stock against the "
-                     f"sector’s {band_lo:.2f}–{band_hi:.2f}, and dips in the same season",
+        # "dips in the same season" was a claim about a series that was not
+        # drawn — the sector appeared only as a static band, so the comparison
+        # the second clause makes was unreadable from the plot. The real
+        # month-of-year Census shape is now plotted beside it (censusByMonth was
+        # already in the payload, and audit A3 already tests the correlation).
+        "inventory": f"The network holds {inv_mean:.2f} months of stock where the sector "
+                     f"holds {band_lo:.2f}–{band_hi:.2f}, and dips in the same season",
         # The volume share is NOT on this plot — the only axis is cost per unit
         # — so it cannot be in the title. It moves to the subtitle and the
         # table, where a reader can check it. A title claiming a variable the
@@ -352,10 +366,16 @@ def render(d):
     # in the dataset — the months the module is actually about — were invisible.
     # Bounds now come from the series, with headroom reserved above the data for
     # annotations so they never have to sit on top of a mark.
+    # `step` is also the GRIDLINE spacing the endpoints snap to. A bound that
+    # does not land on a gridline is drawn by ECharts as an extra tick jammed
+    # against the last regular one — 95 then 99, 15 then 17, 75 then 73 — which
+    # a reading-panel seat read as "a rendering artifact" on three charts. The
+    # padding therefore widens to the next multiple of `step` rather than
+    # landing wherever the data happens to fall.
     def bounds(values, pad_lo=1.5, pad_hi=1.5, floor=None, step=1.0):
         lo, hi = min(values), max(values)
-        lo = (int((lo - pad_lo) / step)) * step
-        hi = (int((hi + pad_hi) / step) + 1) * step
+        lo = math.floor((lo - pad_lo) / step) * step
+        hi = math.ceil((hi + pad_hi) / step) * step
         if floor is not None:
             lo = max(lo, floor)
         return [round(lo, 3), round(hi, 3)]
@@ -374,11 +394,11 @@ def render(d):
 
     axes = {
         # extra headroom on the bar charts is where the annotations live
-        "fills": bounds(f_unit + f_line + f_order, 4.0, 2.0, floor=0),
-        "cf": bounds(f_unit + f_cf, 4.0, 2.0, floor=0),
-        "velocity": [0, bounds(vel_vals, 0, 6, floor=0, step=2)[1]],
-        "economics": [0, bounds(econ_vals, 0, 4, floor=0)[1]],
-        "threshold": [0, bounds(thr_vals, 0, 5, floor=0)[1]],
+        "fills": bounds(f_unit + f_line + f_order, 4.0, 2.0, floor=0, step=5),
+        "cf": bounds(f_unit + f_cf, 4.0, 2.0, floor=0, step=5),
+        "velocity": [0, bounds(vel_vals, 0, 6, floor=0, step=5)[1]],
+        "economics": [0, bounds(econ_vals, 0, 4, floor=0, step=5)[1]],
+        "threshold": [0, bounds(thr_vals, 0, 5, floor=0, step=5)[1]],
         "inventory": [0, max(band_hi + 0.4, max(inv_vals) + 0.4)],
         "nodes": [0, bounds(node_vals, 0, 1.4, floor=0, step=0.5)[1]],
     }
@@ -478,6 +498,7 @@ def build_summaries(d, axes):
                   key=lambda e: -e["split_premium_pct_of_margin"])
     thr = sorted({r["threshold_usd"] for r in d["threshold"]})
     inv = [r["inventory_sales_ratio"] for r in d["inventory"]]
+    census_month = list(d["census_by_month"].values())
     nodes = sorted(d["nodes"], key=lambda n: -n["cost_per_unit"])
     a = axes
 
@@ -517,12 +538,16 @@ def build_summaries(d, axes):
             f"{a['threshold'][1]:.0f}. Both series fall as the threshold rises, "
             f"the off-price series above the premium series throughout.",
         "inventory":
-            f"Line chart with a shaded horizontal reference band. Vertical axis "
-            f"is months of sales held in inventory, 0 to {a['inventory'][1]:.1f}. "
-            f"The plotted series ranges {min(inv):.2f} to {max(inv):.2f} months "
-            f"and runs below the shaded band, which spans "
-            f"{d['census_band'][0]:.2f} to {d['census_band'][1]:.2f}, in every "
-            f"month. The series falls in November and December of both years.",
+            f"Line chart with two series and a shaded horizontal reference band. "
+            f"Vertical axis is months of sales held in inventory, 0 to "
+            f"{a['inventory'][1]:.1f}. The network series ranges {min(inv):.2f} to "
+            f"{max(inv):.2f} months and runs below the shaded band, which spans "
+            f"{d['census_band'][0]:.2f} to {d['census_band'][1]:.2f} and is the "
+            f"seasonally adjusted sector range, in every month. A dashed second "
+            f"series is the unadjusted sector average by month of year, ranging "
+            f"{min(census_month):.2f} to {max(census_month):.2f}. Both the network "
+            f"series and the unadjusted sector series fall in November and "
+            f"December.",
         "nodes":
             f"Bar chart. {len(nodes)} fulfilment nodes on the horizontal axis, "
             f"ordered most to least expensive. Vertical axis is parcel cost per "

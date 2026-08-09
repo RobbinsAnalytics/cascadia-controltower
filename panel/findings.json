@@ -1,0 +1,160 @@
+{
+  "artifact": "Cascadia Control Tower",
+  "date": "2026-08-09",
+  "seats": 4,
+  "nature": "simulated",
+  "charts": 7,
+  "pre_panel_notes_recorded": true,
+  "findings": [
+    {
+      "quote": "if $5.46 is a blended network number and Alder & Vance actually ships heavier, more expensive parcels, then this chart is flattering them and I've been handed the bad end of an average",
+      "seats": [1, 2, 3], "chart": 4,
+      "defect": true, "novel": true,
+      "disposition": "fixed", "rule": "3.2"
+    },
+    {
+      "quote": "If slow movers are three percent of my lines then 17% of them is a rounding error and I don't want a task force.",
+      "seats": [1, 2, 3], "chart": 3,
+      "defect": true, "novel": true,
+      "disposition": "fixed", "rule": "5.1"
+    },
+    {
+      "quote": "we're looking at a chart whose most expensive bars are two percent of the business - that belongs on the chart, not underneath it",
+      "seats": [1, 2, 3], "chart": 6,
+      "defect": true, "novel": false,
+      "disposition": "fixed", "rule": "5.1"
+    },
+    {
+      "quote": "we're a fraction of a company against a whole company and the comparison flatters us badly",
+      "seats": [1, 2, 3], "chart": 7,
+      "defect": true, "novel": true,
+      "disposition": "fixed", "rule": "4.4"
+    },
+    {
+      "quote": "This is \"both banners\" - one blended number. Off-Main runs a different assortment with different depth, and I'd bet money our order fill sits below the blend and Alder & Vance sits above it, and this chart lets that hide.",
+      "seats": [1, 2, 3], "chart": 1,
+      "defect": true, "novel": true,
+      "disposition": "accepted", "rule": "0.1"
+    },
+    {
+      "quote": "Five of the seven headline numbers are not on their plots.",
+      "seats": [1, 2, 3, 4], "chart": 1,
+      "defect": true, "novel": true,
+      "disposition": "accepted", "rule": "3.2"
+    },
+    {
+      "quote": "the $4 point is dropped off the plot and only mentioned in the note, which stopped me for a second while I worked out why the line starts at $5",
+      "seats": [1, 2, 3, 4], "chart": 5,
+      "defect": true, "novel": false,
+      "disposition": "accepted", "rule": "3.2"
+    },
+    {
+      "quote": "the sector is rendered as a static band with no time dimension at all",
+      "seats": [4], "chart": 7,
+      "defect": true, "novel": true,
+      "disposition": "fixed", "rule": "3.2"
+    },
+    {
+      "quote": "If primary means Fernhill, double is $4.54 and no store clears it - claim false.",
+      "seats": [4], "chart": 6,
+      "defect": true, "novel": true,
+      "disposition": "fixed", "rule": "3.2"
+    },
+    {
+      "quote": "The gaps between ticks aren't equal so the slope of the fall is distorted, and the steepest-looking drop between $6 and $7 might just be the spacing.",
+      "seats": [2, 4], "chart": 5,
+      "defect": true, "novel": true,
+      "disposition": "fixed", "rule": "2.1"
+    },
+    {
+      "quote": "two solid same-weight lines converging, hue-only",
+      "seats": [4], "chart": 5,
+      "defect": true, "novel": true,
+      "disposition": "fixed", "rule": "2.3.6"
+    },
+    {
+      "quote": "the achieved unit-fill series is gold in chart 1 and green in chart 2. A reader moving between the two will not recognize it as the same series.",
+      "seats": [4], "chart": 2,
+      "defect": true, "novel": true,
+      "disposition": "fixed", "rule": "2.3.1"
+    },
+    {
+      "quote": "a non-round top tick jammed against the last regular one. It reads as a bug, not a decision.",
+      "seats": [4], "chart": 1,
+      "defect": true, "novel": true,
+      "disposition": "fixed", "rule": "6.6"
+    },
+    {
+      "quote": "the title rounds 3.55% to \"4%\" while the label on the bar says 3.55%. A reader comparing title to label sees 4 vs 3.5.",
+      "seats": [4], "chart": 4,
+      "defect": true, "novel": true,
+      "disposition": "fixed", "rule": "2.9"
+    },
+    {
+      "quote": "The \"Alder & Vance\" in-plot label sits directly on top of the green line near $6-$7; the text and the line overlap.",
+      "seats": [4], "chart": 5,
+      "defect": true, "novel": false,
+      "disposition": "fixed", "rule": "3.4"
+    },
+    {
+      "quote": "The bottom annotation's second line, \"series does,\" runs into the 0.0 gridline and axis labels.",
+      "seats": [4], "chart": 7,
+      "defect": true, "novel": false,
+      "disposition": "fixed", "rule": "3.4"
+    },
+    {
+      "quote": "Three category points with two co-rising series is co-movement, nothing more. The in-plot annotation states \"one cause, thin fragmented stock\" as fact. That's the weakest link in the chart, and it's asserted twice.",
+      "seats": [4], "chart": 3,
+      "defect": true, "novel": true,
+      "disposition": "accepted", "rule": "3.2"
+    },
+    {
+      "quote": "\"Uses two nodes\" reads at first glance as a label for B's blue bar specifically rather than for the blue series. I looked twice at that.",
+      "seats": [4], "chart": 3,
+      "defect": true, "novel": true,
+      "disposition": "accepted", "rule": "3.6"
+    },
+    {
+      "quote": "The descriptive paragraph appears above the title in every image, so a sighted reader gets a flat summary of the axes before reaching the headline sentence. If that text is meant for screen readers only, it's leaking into the visual render.",
+      "seats": [4], "chart": 1,
+      "defect": true, "novel": true,
+      "disposition": "accepted", "rule": "5.2"
+    },
+    {
+      "quote": "Store 104 and Store 103 are both $4.12 and drawn at identical height, presented inside an ordered ranking with no indication it's a tie",
+      "seats": [2, 4], "chart": 6,
+      "defect": true, "novel": true,
+      "disposition": "accepted", "rule": "6.6"
+    },
+    {
+      "quote": "This is a service-benefit chart with no cost axis",
+      "seats": [1, 2, 3], "chart": 2,
+      "defect": false, "novel": null,
+      "disposition": "rejected", "rule": null
+    },
+    {
+      "quote": "the whole thing sits on a 73-99 axis, so the peak troughs look more dramatic than a 100-scale would show",
+      "seats": [2], "chart": 1,
+      "defect": false, "novel": null,
+      "disposition": "rejected", "rule": null
+    },
+    {
+      "quote": "it's a very thin chart - two bars, both labelled, is a sentence with axes",
+      "seats": [4], "chart": 4,
+      "defect": false, "novel": null,
+      "disposition": "rejected", "rule": null
+    },
+    {
+      "quote": "I'd also want cost per order rather than per unit, since store shipments tend to be one-liners.",
+      "seats": [1], "chart": 6,
+      "defect": false, "novel": null,
+      "disposition": "rejected", "rule": null
+    },
+    {
+      "quote": "the subtitle admits the counterfactual is \"evaluated on the inventory position before each allocation,\" which I don't fully follow on first read",
+      "seats": [2], "chart": 2,
+      "defect": false, "novel": null,
+      "disposition": "rejected", "rule": null
+    }
+  ]
+}

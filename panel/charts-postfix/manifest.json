@@ -1,0 +1,72 @@
+{
+  "source": "file:///C:/Projects/cascadia-controltower-analytics/docs/index.html",
+  "viewport": [
+    1440,
+    1200
+  ],
+  "charts": [
+    {
+      "file": "chart-01.png",
+      "selector": ".chart",
+      "id": "c-fills",
+      "size": [
+        1006,
+        400
+      ]
+    },
+    {
+      "file": "chart-02.png",
+      "selector": ".chart",
+      "id": "c-cf",
+      "size": [
+        1006,
+        400
+      ]
+    },
+    {
+      "file": "chart-03.png",
+      "selector": ".chart",
+      "id": "c-vel",
+      "size": [
+        1006,
+        320
+      ]
+    },
+    {
+      "file": "chart-04.png",
+      "selector": ".chart",
+      "id": "c-econ",
+      "size": [
+        1006,
+        320
+      ]
+    },
+    {
+      "file": "chart-05.png",
+      "selector": ".chart",
+      "id": "c-thr",
+      "size": [
+        1006,
+        320
+      ]
+    },
+    {
+      "file": "chart-06.png",
+      "selector": ".chart",
+      "id": "c-nodes",
+      "size": [
+        1006,
+        320
+      ]
+    },
+    {
+      "file": "chart-07.png",
+      "selector": ".chart",
+      "id": "c-inv",
+      "size": [
+        1006,
+        400
+      ]
+    }
+  ]
+}

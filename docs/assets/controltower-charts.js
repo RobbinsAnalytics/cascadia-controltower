@@ -240,9 +240,14 @@
       yAxis: valueAxis(AX.cf, asPct),
       tooltip: { trigger: 'axis', valueFormatter: asPct },
       series: [
+        // Lichen, NOT Evergreen. This is the same unit-fill series chart 1
+        // draws, and chart 1 draws it in Lichen. Shipping it green here
+        // re-dealt a fixed colour slot and a reading-panel seat, seeing only
+        // the images, reported that it could not tell the two charts were
+        // showing the same number over the same 24 months.
         { name: 'Unit fill as achieved', type: 'line', data: actual,
-          color: C.evergreen, symbol: 'none', lineStyle: { width: 2.5 },
-          endLabel: endLabel(INK.evergreen, 'As achieved'),
+          color: C.lichen, symbol: 'none', lineStyle: { width: 2.5 },
+          endLabel: endLabel(INK.lichen, 'As achieved'),
           markPoint: cascadiaAnnotation(
             'The gap is the fill splitting buys, and the cost it hides',
             { coord: [months[8], AX.cf[0] + 1.4], color: INK.madrona,
@@ -274,8 +279,15 @@
   //     carried by the table exactly as well as by the chart.
   // =======================================================================
   (function () {
+    // The band's share of order lines goes on the axis. Every domain seat on
+    // the reading panel asked the same question of this chart and none could
+    // answer it: 17% of band C is a rounding error if band C is 3% of the
+    // business and a programme if it is 40%. It is 8%, and a reader should not
+    // have to open the table to learn that before deciding what the chart means.
+    var velLines = D.velocity.reduce(function (a, v) { return a + v.lines; }, 0);
     var bands = D.velocity.map(function (v) {
-      return { A: 'A · fast', B: 'B · mid', C: 'C · slow' }[v.velocity_band];
+      var nm = { A: 'A · fast', B: 'B · mid', C: 'C · slow' }[v.velocity_band];
+      return nm + '\n' + (v.lines / velLines * 100).toFixed(0) + '% of lines';
     });
     var partial = D.velocity.map(function (v) { return +v.pct_partial.toFixed(2); });
     var multi = D.velocity.map(function (v) { return +v.pct_multi_node.toFixed(2); });
@@ -287,8 +299,9 @@
       // Decal is a second, non-colour channel. The palette does not survive a
       // luminance-only reduction, so this is load-bearing.
       aria: { enabled: true, decal: { show: true } },
-      grid: { left: 56, right: 24, bottom: 42 },
-      xAxis: { type: 'category', data: bands },
+      grid: { left: 56, right: 24, bottom: 58 },
+      xAxis: { type: 'category', data: bands,
+               axisLabel: { lineHeight: 16, width: 88, overflow: 'break' } },
       yAxis: valueAxis(AX.velocity, asPct),
       tooltip: { trigger: 'axis', valueFormatter: asPct },
       series: [
@@ -333,7 +346,20 @@
     splits.sort(function (a, b) {
       return b.split_premium_pct_of_margin - a.split_premium_pct_of_margin;
     });
-    var names = splits.map(function (e) { return e.banner_name; });
+    // How much of each banner actually splits, on the axis. All three domain
+    // seats asked it and none could answer: a 12% margin bite matters very
+    // differently at 4% of orders than at 20%, and with two bars and no
+    // denominator the chart cannot be turned into money by the person whose
+    // money it is. Denominator is that banner's own orders, split and single.
+    var ordersByBanner = {};
+    D.economics.forEach(function (e) {
+      ordersByBanner[e.banner] = (ordersByBanner[e.banner] || 0) + e.orders;
+    });
+    var names = splits.map(function (e) {
+      var share = e.orders / ordersByBanner[e.banner] * 100;
+      return e.banner_name + '\n' + share.toFixed(0) + '% of its orders split · ' +
+        Math.round(e.orders).toLocaleString('en-US');
+    });
     var vals = splits.map(function (e) {
       return +(e.split_premium_pct_of_margin * 100).toFixed(2);
     });
@@ -346,8 +372,9 @@
         'Split premium as a share of the gross margin on the same order · ' +
         'split orders only'),
       aria: { enabled: true, decal: { show: true } },
-      grid: { left: 60, right: 28, bottom: 42 },
-      xAxis: { type: 'category', data: names },
+      grid: { left: 60, right: 28, bottom: 58 },
+      xAxis: { type: 'category', data: names,
+               axisLabel: { lineHeight: 16, width: 124, overflow: 'break' } },
       yAxis: valueAxis(AX.economics, asPct),
       tooltip: { trigger: 'axis', valueFormatter: asPct },
       series: [{
@@ -392,9 +419,14 @@
         r.pct_of_split_orders;
     });
     ts.sort(function (a, b) { return a - b; });
-    var labels = ts.map(function (t) { return '$' + t; });
-    var off = ts.map(function (t) { return +(byBanner.offprice[t] || 0).toFixed(1); });
-    var prem = ts.map(function (t) { return +(byBanner.premium[t] || 0).toFixed(1); });
+    // Paired [dollars, percent] because the x axis is a VALUE axis, not a
+    // category axis. Drawn as categories, $5→$6 and $15→$20 occupied the same
+    // width, so every slope in the chart was distorted and the apparent
+    // steepening past $10 was an artifact of the spacing. Two reading-panel
+    // seats independently questioned the axis; one of them could only say the
+    // shape looked wrong, which is what a distorted axis does to a reader.
+    var off = ts.map(function (t) { return [t, +(byBanner.offprice[t] || 0).toFixed(1)]; });
+    var prem = ts.map(function (t) { return [t, +(byBanner.premium[t] || 0).toFixed(1)]; });
 
     // Widest vertical gap, searched over INTERIOR points only. A label centred
     // on the first or last point overflows the grid edge and is silently
@@ -403,7 +435,20 @@
     // sitting just outside the plot.
     var gi = 1, best = -1;
     for (var i = 1; i < off.length - 1; i++) {
-      if (off[i] - prem[i] > best) { best = off[i] - prem[i]; gi = i; }
+      if (off[i][1] - prem[i][1] > best) { best = off[i][1] - prem[i][1]; gi = i; }
+    }
+
+    // Prefer the END OF A PLATEAU over the widest gap. Split premiums cluster on
+    // discrete parcel rates, so the curves run flat then fall steeply; a label
+    // centred on a point immediately before a steep fall has that fall running
+    // straight through it, which is what a reading-panel seat saw — the name
+    // sitting on top of its own line. On a flat run the label clears the mark
+    // in both directions. Falls back to the widest interior gap if no plateau.
+    for (var j = off.length - 2; j >= 1; j--) {
+      if (off[j][1] === off[j + 1][1] && prem[j][1] === prem[j + 1][1]) {
+        gi = j + 1;
+        break;
+      }
     }
 
     // Series names are drawn as markPoint labels rather than series labels.
@@ -428,7 +473,16 @@
         'Share of each banner’s split orders whose premium exceeds the threshold · ' +
         '$4 omitted: every split clears it, so both banners sit at 100%'),
       grid: { left: 54, right: 44, bottom: 42 },
-      xAxis: { type: 'category', data: labels, boundaryGap: false },
+      xAxis: {
+        type: 'value', min: ts[0], max: ts[ts.length - 1],
+        // Ticks at the sampled thresholds themselves, so the reader sees which
+        // points were evaluated; the marks sit at their true dollar positions.
+        interval: 1,
+        axisLabel: {
+          formatter: function (v) { return ts.indexOf(v) < 0 ? '' : '$' + v; }
+        },
+        splitLine: { show: false }
+      },
       yAxis: valueAxis(AX.threshold, asPct),
       tooltip: { trigger: 'axis', valueFormatter: asPct },
       series: [
@@ -437,14 +491,20 @@
           markPoint: { symbol: 'circle', symbolSize: 0, data: [
             cascadiaAnnotation(
               'The curves separate: the same rule bites the two banners differently',
-              { coord: [labels[labels.length - 3], AX.threshold[1] - 1.6],
+              { coord: [ts[ts.length - 3], AX.threshold[1] - 1.6],
                 color: INK.glacier, position: 'top', width: 250 }).data[0],
-            nameAt(labels[gi], off[gi], 'Off-Main', INK.glacier, 'top')
+            nameAt(ts[gi], off[gi][1], 'Off-Main', INK.glacier, 'top')
           ] } },
+        // Dashed, not solid. Both series were solid lines of equal weight
+        // separated by hue alone, and they converge to under one percent at the
+        // right-hand end — the one chart in the set a reading-panel seat said
+        // would genuinely degrade in grayscale. Chart 2 already uses dash for
+        // exactly this job.
         { name: 'Alder & Vance', type: 'line', data: prem, color: C.evergreen,
-          symbol: 'circle', symbolSize: 6, lineStyle: { width: 2.5 },
+          symbol: 'circle', symbolSize: 6,
+          lineStyle: { width: 2.5, type: 'dashed' },
           markPoint: { symbol: 'circle', symbolSize: 0, data: [
-            nameAt(labels[gi], prem[gi], 'Alder & Vance', INK.evergreen, 'bottom')
+            nameAt(ts[gi], prem[gi][1], 'Alder & Vance', INK.evergreen, 'bottom')
           ] } }
       ]
     }, {
@@ -468,11 +528,33 @@
     var lo = D.censusBand[0], hi = D.censusBand[1];
     var dec = labels.indexOf('2025-12');
 
+    // The real sector's seasonal shape, month-of-year mean, drawn at last.
+    //
+    // The title's second clause — "and dips in the same season" — was a
+    // comparison against a series that was not on the plot: the sector appeared
+    // only as a static band, which has no time dimension and therefore cannot
+    // dip. A reading-panel seat working from the image alone said so directly.
+    // The series was already in the payload; validate.py's audit A3 has been
+    // correlating against it the whole time.
+    //
+    // BAND AND LINE ARE DIFFERENT ADJUSTMENTS and both now say so on the
+    // canvas. The band is the seasonally adjusted range, which is the level
+    // bound audit A1 uses; seasonal adjustment removes seasonality by
+    // construction, so the SA series is flat (2.75–2.91) and could never show a
+    // dip. The unadjusted series is the one with a real December trough, and it
+    // is the like-for-like comparator for an unadjusted network series. Drawing
+    // one and labelling it as the other would be the same defect in a new place.
+    var sector = labels.map(function (m) {
+      var v = D.censusByMonth[parseInt(m.slice(5), 10)];
+      return (v === undefined || v === null) ? null : +v.toFixed(3);
+    });
+
     make('c-inv', {
       title: cascadiaTitle(D.titles.inventory,
         'Months of sales held in inventory · inventory at cost over sales at retail, ' +
-        'the Census convention · shaded band is the real department-store range'),
-      grid: { left: 54, right: 122, bottom: 40 },
+        'the Census convention · one fulfilment network against whole ' +
+        'department-store companies — a plausibility bound, not a peer target'),
+      grid: { left: 54, right: 150, bottom: 40 },
       xAxis: timeAxis(labels),
       yAxis: valueAxis(AX.inventory, function (v) { return v.toFixed(1); }),
       tooltip: { trigger: 'axis' },
@@ -485,11 +567,17 @@
         markArea: {
           silent: true,
           itemStyle: { color: 'rgba(154, 166, 160, 0.30)' },
+          // Short, left-aligned, and outlined in paper. The band's numbers are
+          // in the title and the band is no longer the only sector mark on the
+          // plot, so this label only has to say WHICH sector series the shading
+          // is. A long centred sentence now has the unadjusted line crossing it
+          // repeatedly — the band spans 2.03–3.64 and that line oscillates
+          // through nearly all of it.
           label: {
-            show: true, position: 'insideTop',
-            formatter: 'US department stores, 2015–2026: ' +
-                       lo.toFixed(2) + '–' + hi.toFixed(2) + ' months',
-            color: C.slateMoss, fontFamily: SERIF, fontSize: 12
+            show: true, position: 'insideTopLeft', distance: 6,
+            formatter: 'Sector, seasonally adjusted',
+            color: C.slateMoss, fontFamily: SERIF, fontSize: 12,
+            textBorderColor: C.paper, textBorderWidth: 3
           },
           data: [[{ yAxis: lo }, { yAxis: hi }]]
         },
@@ -499,19 +587,30 @@
         // longer pointed at anything.
         markPoint: dec >= 0 ? cascadiaAnnotation(
           'Peak-season sales pull the ratio down, as the real series does',
-          { coord: [labels[dec], 0.34], color: INK.evergreen,
+          // Hung from 0.52, not 0.34: the text wraps to two lines and the second
+          // was running into the zero gridline and the month labels under it.
+          { coord: [labels[dec], 0.52], color: INK.evergreen,
             position: 'bottom', distance: 6, width: 300 }) : undefined
+      }, {
+        name: 'US department stores, unadjusted', type: 'line', data: sector,
+        color: C.slateMoss, symbol: 'none',
+        lineStyle: { width: 2, type: 'dashed' },
+        endLabel: endLabel(INK.slate, 'Sector, unadjusted')
       }]
     }, {
       tableId: 'tbl-inv',
       ariaLabel: 'Line chart of monthly inventory-to-sales ratio for the modelled ' +
-        'network against a shaded band showing the real US department-store range. ' +
-        'The network series runs below the band throughout and dips each November ' +
-        'and December.',
+        'network against a shaded band showing the seasonally adjusted US ' +
+        'department-store range, and a dashed line showing the unadjusted sector ' +
+        'series. The network runs below the band throughout, and both the network ' +
+        'and the unadjusted sector series dip each November and December.',
       flags: 'sector band excludes the March–May 2020 store closures',
       navigator: {
         label: 'Monthly inventory to sales ratio, months, against the department-store band.',
-        series: [{ name: 'This network', points: pts(labels, ratio) }]
+        series: [
+          { name: 'This network', points: pts(labels, ratio) },
+          { name: 'US department stores, unadjusted', points: pts(labels, sector) }
+        ]
       }
     });
   })();
@@ -524,19 +623,42 @@
     var ns = D.nodes.slice().sort(function (a, b) {
       return b.cost_per_unit - a.cost_per_unit;
     });
-    var names = ns.map(function (n) { return n.node_name; });
+    // Two things the plot withheld, both restored to the axis label.
+    //
+    // "primary" — the title claims every store ships at more than double the
+    // PRIMARY FC's cost per unit. Two FCs are drawn in the same colour and
+    // nothing said which one was primary. Against Cascade Ridge ($1.65) the
+    // claim is true; against Fernhill ($2.27) no store clears double, so the
+    // truth of the headline turned on a fact the picture did not carry. A
+    // reading-panel seat found exactly that and could not verify the title.
+    //
+    // "% of units" — the volume weighting was in the subtitle and the table,
+    // and all three domain seats independently said the chart was unreadable
+    // without it: four fat bars get the same visual weight as the two nodes
+    // doing essentially all the work.
+    var totalUnits = ns.reduce(function (a, n) { return a + n.units; }, 0);
+    var names = ns.map(function (n) {
+      var share = (n.units / totalUnits) * 100;
+      return n.node_name + '\n' + (n.node_key === 'FC1' ? 'primary · ' : '') +
+        (share >= 1 ? share.toFixed(0) : share.toFixed(1)) + '%';
+    });
     var cpu = ns.map(function (n) { return +n.cost_per_unit.toFixed(2); });
     var isStore = ns.map(function (n) { return n.node_kind === 'STORE'; });
     var asMoney = function (v) { return '$' + v.toFixed(2); };
 
     make('c-nodes', {
       title: cascadiaTitle(D.titles.nodes,
-        'Parcel cost per unit shipped · 24 months · stores carry 1.9% of units, ' +
-        'shown in the table'),
+        'Parcel cost per unit shipped · 24 months · each node’s share of units ' +
+        'is on the axis beneath it'),
       aria: { enabled: true, decal: { show: true } },
-      grid: { left: 62, right: 28, bottom: 70 },
+      grid: { left: 62, right: 28, bottom: 76 },
+      // Bounded width with overflow:'break' so a long name WRAPS rather than
+      // running into its neighbours. Six categories at 320px give each label
+      // about 33px of real estate, so an unbounded label box smears; a bounded
+      // one degrades to more lines instead, which is legible.
       xAxis: { type: 'category', data: names,
-               axisLabel: { interval: 0, fontSize: 12, width: 88, overflow: 'break' } },
+               axisLabel: { interval: 0, fontSize: 12, width: 104,
+                            lineHeight: 15, overflow: 'break' } },
       yAxis: valueAxis(AX.nodes, asMoney),
       tooltip: { trigger: 'axis',
                  valueFormatter: function (v) { return '$' + v.toFixed(2); } },
