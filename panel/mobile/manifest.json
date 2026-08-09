@@ -1,0 +1,72 @@
+{
+  "source": "http://localhost:8731/",
+  "viewport": [
+    390,
+    844
+  ],
+  "charts": [
+    {
+      "file": "chart-01.png",
+      "selector": ".chart-block",
+      "id": null,
+      "size": [
+        362,
+        670
+      ]
+    },
+    {
+      "file": "chart-02.png",
+      "selector": ".chart-block",
+      "id": null,
+      "size": [
+        362,
+        709
+      ]
+    },
+    {
+      "file": "chart-03.png",
+      "selector": ".chart-block",
+      "id": null,
+      "size": [
+        362,
+        662
+      ]
+    },
+    {
+      "file": "chart-04.png",
+      "selector": ".chart-block",
+      "id": null,
+      "size": [
+        362,
+        642
+      ]
+    },
+    {
+      "file": "chart-05.png",
+      "selector": ".chart-block",
+      "id": null,
+      "size": [
+        362,
+        699
+      ]
+    },
+    {
+      "file": "chart-06.png",
+      "selector": ".chart-block",
+      "id": null,
+      "size": [
+        362,
+        642
+      ]
+    },
+    {
+      "file": "chart-07.png",
+      "selector": ".chart-block",
+      "id": null,
+      "size": [
+        362,
+        790
+      ]
+    }
+  ]
+}

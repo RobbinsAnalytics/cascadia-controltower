@@ -15,6 +15,11 @@
 > Two things this clearance does **not** cover, stated so they are not read as
 > covered: the shipping render (§6) has not itself been panelled, and four open
 > items the panel raised are closed by no fix (§2.6).
+>
+> **Viewports reviewed: 390 · 414 · 768 · 1440 (§7).** §2–§6 were conducted at
+> 1006px only; §7 is the responsive review and supersedes the Layer 5 portion of
+> §3. Three charts miss the 65% plot-width floor at 390px for a reason that is
+> arithmetic rather than oversight — recorded in §7, not waved through.
 
 ---
 
@@ -307,3 +312,85 @@ likely to introduce something new.
 **If this module is extended or its charts materially change, the panel runs
 again on the new render.** A panel result is about an artifact, not about a
 module.
+
+---
+
+## 7 · A1 · Responsive review (2026-08-09)
+
+**Viewports reviewed: 390×844, 414×896, 768×1024, 1440×900.** Previous sections
+of this review were conducted at 1006px only. A chart reviewed at one width has
+not been reviewed, so this section supersedes the Layer 5 portion of §3.
+
+### What was wrong
+
+Every chart overrode the shared theme's grid margins with fixed pixel values —
+`left` at 52–62 against the theme's 8, discarding the point of `containLabel`,
+which is to let ECharts compute the axis allowance from the labels it actually
+draws. On a 292px phone canvas the worst chart gave the plot **30% of the
+width and 55% of the height**.
+
+### What changed
+
+| Change | Effect |
+|---|---|
+| `left: 8` with `containLabel: true` on all seven | The axis allowance is computed, not guessed |
+| **Title and subtitle moved out of the canvas into the DOM** | A canvas title reserves a fixed box sized for the widest case — 99px of a 290px canvas — and wraps to five lines at phone width anyway. In the DOM it reflows and grows the block downward. Plot height went from 52–61% to **72–85%** |
+| Direct-label gutters measured, not typed | `measureGutter` runs the real font against the real label strings. One named constant per chart, collected in one place so the v2.3 amendment can replace the mechanism cleanly |
+| `bottom` inherited via `containLabel` | The 40–76px overrides are gone; ECharts sizes for the labels each chart actually has, including the wrapped two-line node names |
+| Axis tick interval `'auto'` | A fixed every-third-tick rule is a desktop measurement in disguise: eight month labels fit across 1006px and collided into an unreadable smear across 156px. Rule 5.5's drop order asks for thinning, never rotation |
+| Annotation wrap width fixed at 190px | `cascadiaAnnotation` centres its label on a data coordinate, so a box wider than the plot overhangs the canvas. At 390px the counterfactual annotation lost its first two characters and read *"e gap is the fill splitting buys"* |
+| `TOP_PAD` 34px | With the title gone this clears the annotations, which live in the reserved headroom at the top of each axis. At 8px it looked right in code and clipped the top line of every two-line annotation |
+
+### Measured plot width, as a share of canvas
+
+| Chart | 390px | 414px | 768px | 1440px |
+|---|---|---|---|---|
+| `c-vel` | 80.9% | 82.2% | 90.8% | 93.8% |
+| `c-econ` | 80.9% | 82.2% | 90.8% | 93.8% |
+| `c-thr` | 80.9% | 82.2% | 90.8% | 93.8% |
+| `c-nodes` | 79.1% | 80.5% | 89.9% | 93.2% |
+| `c-fills` | **64.0%** | 66.4% | 82.6% | 88.2% |
+| `c-cf` | **49.3%** | **52.8%** | 75.5% | 83.5% |
+| `c-inv` | **48.9%** | **52.4%** | 75.3% | 83.3% |
+
+Also verified at every width: no horizontal page scroll; no stale canvas after
+**resize without reload**; and opening a data table above a chart re-lays out
+the chart below it (moved 837px, all charts still correctly sized).
+
+### Three charts miss the 65% floor at 390px, and the reason is arithmetic
+
+`c-fills` at 64.0% is one point short. `c-cf` and `c-inv` sit near 49%.
+
+All three are the charts carrying **end-of-line direct labels**, and the floor
+is unreachable for them without changing the labels themselves:
+
+```
+canvas at 390px viewport            328px
+65% plot floor                      213px
+left inset, containLabel            ~39px
+  -> maximum affordable gutter       76px
+
+c-fills   "Order fill"               73px   clears at 414px, 1pt short at 390
+c-cf      "Single node only"        121px   45px over
+c-inv     "Sector, unadjusted"      136px   60px over
+```
+
+The gutters are already minimal for the text they hold — they are measured
+against the rendered font, not estimated. Closing the remaining gap requires
+either shortening the label text at all widths, which makes the desktop chart
+worse to serve the phone, or a width-aware label mechanism. **Both are the v2.3
+amendment, which this task is explicitly scoped out of** (A1 §2.4). The gutters
+are therefore left as named constants in one place, which is what A1 asked for,
+so v2.3 can replace the mechanism without hunting through the file.
+
+**All three remain readable at 390px** — series distinguishable, labels legible,
+annotations intact, nothing clipped. They are narrow, not broken. Recorded as a
+known limit rather than reported as a pass.
+
+### Not done, deliberately
+
+The general responsive rule (A1 §2.4), label abbreviation, a legend fallback and
+a breakpoint system are all out of scope and were not written. No second resize
+handler was added; the existing `ResizeObserver` plus window listener were
+verified working and left alone. The Rule 7.4 panel was **not** re-run — that
+decision sits with Aaron and belongs after v2.3.

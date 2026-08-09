@@ -74,28 +74,103 @@
 
   var charts = [];
 
-  /** Wrap the title to the container and push the plot below it. */
-  function fitTitle(ch, el, titleText, subtitleText, extraTop) {
-    var w = Math.max(240, el.clientWidth - 24);
-    // Source Serif at 18px averages a shade over half the font size per glyph.
-    var lines = Math.max(1, Math.ceil(titleText.length * 9.6 / w));
-    var subLines = Math.max(1, Math.ceil((subtitleText || '').length * 6.6 / w));
-    var top = 26 * lines + 17 * subLines + 30 + (extraTop || 0);
-    ch.setOption({
-      title: { textStyle: { width: w, overflow: 'break' },
-               subtextStyle: { width: w, overflow: 'break' } },
-      grid: { top: top }
+  /**
+   * DIRECT-LABEL GUTTERS (Rule 3.6), one named value per chart.
+   *
+   * Every one of these reserves room for an end-of-series label. They are
+   * collected here rather than inlined so the v2.3 responsive amendment can
+   * replace the mechanism in one place instead of hunting through the file.
+   *
+   * Sized to the widest label each chart actually draws, measured rather than
+   * guessed — `measureGutter` below runs the real font against the real
+   * strings. Charts with no end label take the theme's own right margin.
+   */
+  var LABELS = {
+    fills:  ['Unit fill', 'Line fill', 'Order fill'],
+    cf:     ['As achieved', 'Single node only'],
+    inv:    ['This network', 'Sector, unadjusted'],
+    thr:    [],
+    vel:    [],
+    econ:   [],
+    nodes:  []
+  };
+
+  function measureGutter(strings) {
+    if (!strings.length) return 24;
+    var c = document.createElement('canvas').getContext('2d');
+    c.font = '600 13px ' + SERIF;
+    var widest = 0;
+    strings.forEach(function (s) {
+      widest = Math.max(widest, c.measureText(s).width);
     });
+    // 6px is the label's own `distance` from the line end; 4px keeps the
+    // glyphs off the canvas edge. Tight on purpose — every pixel here comes
+    // straight out of the plot, and at 390px the gutter is what decides
+    // whether a chart clears the 65% plot-width floor.
+    return Math.ceil(widest) + 10;
+  }
+
+  var GUTTER = {};
+  Object.keys(LABELS).forEach(function (k) {
+    GUTTER[k] = measureGutter(LABELS[k]);
+  });
+
+  /**
+   * Top padding inside the plot.
+   *
+   * With the title out of the canvas this no longer clears a title block — it
+   * clears the ANNOTATIONS, which sit in the headroom reserved at the top of
+   * each axis. Set to 8 it looked correct in code and clipped the top line of
+   * every two-line annotation on a phone.
+   */
+  var TOP_PAD = 34;
+
+  /**
+   * Annotation wrap width, one value for every width.
+   *
+   * cascadiaAnnotation centres its label on a data coordinate, so a box wider
+   * than the plot overhangs the canvas and gets clipped — on a phone the
+   * counterfactual annotation lost its first two characters and read "e gap is
+   * the fill splitting buys". Sized to fit the narrowest supported canvas
+   * rather than switched at a breakpoint, so there is one behaviour to reason
+   * about and nothing to re-evaluate on resize.
+   */
+  var ANN_W = 190;
+
+  /**
+   * TITLE AND SUBTITLE LIVE IN THE DOM, NOT ON THE CANVAS.
+   *
+   * A canvas title has to reserve a fixed box, and the box is sized for the
+   * widest case. On a 292px phone canvas the reserved block reached 99px — a
+   * third of the whole chart — before the plot got anything, and a title that
+   * wraps to five lines at that width overruns it anyway.
+   *
+   * In the DOM the title reflows like ordinary text and grows the block
+   * downward instead of eating a fixed-height plot, so the canvas keeps its
+   * full height at every width. It also puts the finding above the Rule 5.2
+   * description rather than below it, which is the reading order Rule 3.1 asks
+   * for and which the panel flagged.
+   *
+   * The trade this accepts: a screenshot of the bare canvas no longer carries
+   * its title. The screenshot unit for this system is the `.chart-block`, which
+   * is also where the provenance strip already lives, so nothing that travels
+   * as a unit loses anything.
+   */
+  function setBlockTitle(id, title, subtitle) {
+    var t = document.getElementById(id + '-title');
+    var s = document.getElementById(id + '-subtitle');
+    if (t) t.textContent = title;
+    if (s) s.textContent = subtitle || '';
   }
 
   function make(id, option, opts) {
     var el = document.getElementById(id);
     if (!el) return null;
+    setBlockTitle(id, opts.title, opts.subtitle);
     var ch = echarts.init(el, 'cascadia', { renderer: 'canvas' });
     option.animationDuration = MOTION.duration;
     option.animation = !MOTION.reduced;
     ch.setOption(option);
-    fitTitle(ch, el, option.title.text, option.title.subtext, opts.extraTop);
     charts.push(ch);
 
     cascadiaAccessible(el, {
@@ -124,11 +199,7 @@
         lastW = r.width; lastH = r.height;
         if (queued) return;
         queued = true;
-        setTimeout(function () {
-          queued = false;
-          ch.resize();
-          fitTitle(ch, el, option.title.text, option.title.subtext, opts.extraTop);
-        }, 0);
+        setTimeout(function () { queued = false; ch.resize(); }, 0);
       }).observe(el);
     }
     return ch;
@@ -138,7 +209,12 @@
     return {
       type: 'category', data: labels, boundaryGap: false,
       axisLabel: {
-        interval: function (i) { return i % 3 === 0; },
+        // 'auto' rather than every third tick. A fixed interval is a desktop
+        // measurement in disguise: eight month labels fit across a 1006px plot
+        // and collide into an unreadable smear across a 156px one. ECharts
+        // thins by available room, which is what Rule 5.5's drop order asks
+        // for — thin the ticks, never rotate them.
+        interval: 'auto',
         formatter: function (v) {
           var p = v.split('-');
           return p[1] + '/' + p[0].slice(2);
@@ -186,9 +262,8 @@
     var order = D.fills.map(function (r) { return +(r.order_fill * 100).toFixed(2); });
 
     make('c-fills', {
-      title: cascadiaTitle(D.titles.fills,
-        'Unit, line and order fill · monthly · both banners · one dataset'),
-      grid: { left: 52, right: 96, bottom: 40 },
+      grid: { left: 8, right: GUTTER.fills, top: TOP_PAD, bottom: 8,
+              containLabel: true },
       xAxis: timeAxis(months),
       yAxis: valueAxis(AX.fills, asPct),
       tooltip: { trigger: 'axis', valueFormatter: asPct },
@@ -206,9 +281,11 @@
           markPoint: cascadiaAnnotation(
             'Order fill is always lowest: one short line fails the whole order',
             { coord: [months[8], AX.fills[0] + 1.6], color: INK.evergreen,
-              position: 'top', width: 250 }) }
+              position: 'top', width: ANN_W }) }
       ]
     }, {
+      title: D.titles.fills,
+      subtitle: 'Unit, line and order fill · monthly · both banners · one dataset',
       tableId: 'tbl-fills',
       ariaLabel: 'Line chart of three monthly fill rates over 24 months. Unit fill ' +
         'is highest throughout, order fill lowest, line fill between. The three ' +
@@ -232,10 +309,8 @@
     var cf = D.fills.map(function (r) { return +(r.cf_unit_fill * 100).toFixed(2); });
 
     make('c-cf', {
-      title: cascadiaTitle(D.titles.counterfactual,
-        'Unit fill achieved, against the best any single node could have done · ' +
-        'evaluated on the inventory position before each allocation'),
-      grid: { left: 52, right: 132, bottom: 40 },
+      grid: { left: 8, right: GUTTER.cf, top: TOP_PAD, bottom: 8,
+              containLabel: true },
       xAxis: timeAxis(months),
       yAxis: valueAxis(AX.cf, asPct),
       tooltip: { trigger: 'axis', valueFormatter: asPct },
@@ -251,13 +326,16 @@
           markPoint: cascadiaAnnotation(
             'The gap is the fill splitting buys, and the cost it hides',
             { coord: [months[8], AX.cf[0] + 1.4], color: INK.madrona,
-              position: 'top', width: 230 }) },
+              position: 'top', width: ANN_W }) },
         { name: 'Unit fill if splitting were forbidden', type: 'line', data: cf,
           color: C.madrona, symbol: 'none',
           lineStyle: { width: 2, type: 'dashed' },
           endLabel: endLabel(INK.madrona, 'Single node only') }
       ]
     }, {
+      title: D.titles.counterfactual,
+      subtitle: 'Unit fill achieved, against the best any single node could have ' +
+                'done · evaluated on the inventory position before each allocation',
       tableId: 'tbl-cf',
       ariaLabel: 'Line chart comparing achieved unit fill against unit fill under a ' +
         'single-node-only rule, monthly over 24 months. The achieved series is above ' +
@@ -293,13 +371,11 @@
     var multi = D.velocity.map(function (v) { return +v.pct_multi_node.toFixed(2); });
 
     make('c-vel', {
-      title: cascadiaTitle(D.titles.velocity,
-        'Share of order lines · by SKU velocity band · slow movers are ranged at ' +
-        'two nodes, fast movers at six'),
       // Decal is a second, non-colour channel. The palette does not survive a
       // luminance-only reduction, so this is load-bearing.
       aria: { enabled: true, decal: { show: true } },
-      grid: { left: 56, right: 24, bottom: 58 },
+      grid: { left: 8, right: GUTTER.vel, top: TOP_PAD, bottom: 8,
+              containLabel: true },
       xAxis: { type: 'category', data: bands,
                axisLabel: { lineHeight: 16, width: 88, overflow: 'break' } },
       yAxis: valueAxis(AX.velocity, asPct),
@@ -328,9 +404,12 @@
           markPoint: cascadiaAnnotation(
             'Both symptoms rise together: one cause, thin fragmented stock',
             { coord: [bands[1], AX.velocity[1] - 1.4], color: INK.glacier,
-              position: 'top', width: 260 }) }
+              position: 'top', width: ANN_W }) }
       ]
     }, {
+      title: D.titles.velocity,
+      subtitle: 'Share of order lines · by SKU velocity band · slow movers are ' +
+                'ranged at two nodes, fast movers at six',
       tableId: 'tbl-vel',
       ariaLabel: 'Grouped bar chart. For each of three SKU velocity bands, the share ' +
         'of order lines shipping short and the share using more than one node. Both ' +
@@ -368,11 +447,9 @@
     });
 
     make('c-econ', {
-      title: cascadiaTitle(D.titles.economics,
-        'Split premium as a share of the gross margin on the same order · ' +
-        'split orders only'),
       aria: { enabled: true, decal: { show: true } },
-      grid: { left: 60, right: 28, bottom: 58 },
+      grid: { left: 8, right: GUTTER.econ, top: TOP_PAD, bottom: 8,
+              containLabel: true },
       xAxis: { type: 'category', data: names,
                axisLabel: { lineHeight: 16, width: 124, overflow: 'break' } },
       yAxis: valueAxis(AX.economics, asPct),
@@ -387,9 +464,12 @@
         markPoint: cascadiaAnnotation(
           'Near-identical dollar cost, very different consequence',
           { coord: [names[1], AX.economics[1] - 1.2], color: INK.glacier,
-            position: 'top', width: 230 })
+            position: 'top', width: ANN_W })
       }]
     }, {
+      title: D.titles.economics,
+      subtitle: 'Split premium as a share of the gross margin on the same order · ' +
+                'split orders only',
       tableId: 'tbl-econ',
       ariaLabel: 'Bar chart of split premium as a percent of gross margin, for two ' +
         'banners. The off-price banner is roughly three times the premium banner.'
@@ -469,10 +549,8 @@
     }
 
     make('c-thr', {
-      title: cascadiaTitle(D.titles.threshold,
-        'Share of each banner’s split orders whose premium exceeds the threshold · ' +
-        '$4 omitted: every split clears it, so both banners sit at 100%'),
-      grid: { left: 54, right: 44, bottom: 42 },
+      grid: { left: 8, right: GUTTER.thr, top: TOP_PAD, bottom: 8,
+              containLabel: true },
       xAxis: {
         type: 'value', min: ts[0], max: ts[ts.length - 1],
         // Ticks at the sampled thresholds themselves, so the reader sees which
@@ -492,7 +570,7 @@
             cascadiaAnnotation(
               'The curves separate: the same rule bites the two banners differently',
               { coord: [ts[ts.length - 3], AX.threshold[1] - 1.6],
-                color: INK.glacier, position: 'top', width: 250 }).data[0],
+                color: INK.glacier, position: 'top', width: ANN_W }).data[0],
             nameAt(ts[gi], off[gi][1], 'Off-Main', INK.glacier, 'top')
           ] } },
         // Dashed, not solid. Both series were solid lines of equal weight
@@ -508,6 +586,10 @@
           ] } }
       ]
     }, {
+      title: D.titles.threshold,
+      subtitle: 'Share of each banner’s split orders whose premium exceeds the ' +
+                'threshold · $4 omitted: every split clears it, so both banners ' +
+                'sit at 100%',
       tableId: 'tbl-thr',
       ariaLabel: 'Line chart. Percent of each banner’s split orders whose premium ' +
         'exceeds a cost threshold, from five to twenty dollars. Both series fall as ' +
@@ -550,11 +632,8 @@
     });
 
     make('c-inv', {
-      title: cascadiaTitle(D.titles.inventory,
-        'Months of sales held in inventory · inventory at cost over sales at retail, ' +
-        'the Census convention · one fulfilment network against whole ' +
-        'department-store companies — a plausibility bound, not a peer target'),
-      grid: { left: 54, right: 150, bottom: 40 },
+      grid: { left: 8, right: GUTTER.inv, top: TOP_PAD, bottom: 8,
+              containLabel: true },
       xAxis: timeAxis(labels),
       yAxis: valueAxis(AX.inventory, function (v) { return v.toFixed(1); }),
       tooltip: { trigger: 'axis' },
@@ -590,7 +669,7 @@
           // Hung from 0.52, not 0.34: the text wraps to two lines and the second
           // was running into the zero gridline and the month labels under it.
           { coord: [labels[dec], 0.52], color: INK.evergreen,
-            position: 'bottom', distance: 6, width: 300 }) : undefined
+            position: 'bottom', distance: 6, width: ANN_W }) : undefined
       }, {
         name: 'US department stores, unadjusted', type: 'line', data: sector,
         color: C.slateMoss, symbol: 'none',
@@ -598,6 +677,11 @@
         endLabel: endLabel(INK.slate, 'Sector, unadjusted')
       }]
     }, {
+      title: D.titles.inventory,
+      subtitle: 'Months of sales held in inventory · inventory at cost over sales ' +
+                'at retail, the Census convention · one fulfilment network against ' +
+                'whole department-store companies — a plausibility bound, not a ' +
+                'peer target',
       tableId: 'tbl-inv',
       ariaLabel: 'Line chart of monthly inventory-to-sales ratio for the modelled ' +
         'network against a shaded band showing the seasonally adjusted US ' +
@@ -647,11 +731,9 @@
     var asMoney = function (v) { return '$' + v.toFixed(2); };
 
     make('c-nodes', {
-      title: cascadiaTitle(D.titles.nodes,
-        'Parcel cost per unit shipped · 24 months · each node’s share of units ' +
-        'is on the axis beneath it'),
       aria: { enabled: true, decal: { show: true } },
-      grid: { left: 62, right: 28, bottom: 76 },
+      grid: { left: 8, right: GUTTER.nodes, top: TOP_PAD, bottom: 8,
+              containLabel: true },
       // Bounded width with overflow:'break' so a long name WRAPS rather than
       // running into its neighbours. Six categories at 320px give each label
       // about 33px of real estate, so an unbounded label box smears; a bounded
@@ -673,9 +755,12 @@
         markPoint: cascadiaAnnotation(
           'Stores are the expensive last resort that rescues an order',
           { coord: [names[2], AX.nodes[1] - 0.28], color: INK.madrona,
-            position: 'top', width: 250 })
+            position: 'top', width: ANN_W })
       }]
     }, {
+      title: D.titles.nodes,
+      subtitle: 'Parcel cost per unit shipped · 24 months · each node’s share of ' +
+                'units is on the axis beneath it',
       tableId: 'tbl-nodes',
       ariaLabel: 'Bar chart of parcel cost per unit for six fulfilment nodes, ordered ' +
         'most to least expensive. The four store nodes are the most expensive; the ' +

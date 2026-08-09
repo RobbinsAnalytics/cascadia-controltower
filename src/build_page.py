@@ -160,8 +160,18 @@ def table(caption, headers, rows, table_id):
 
 
 def chart_block(cid, summary, table_html, tall=False):
+    """Title and subtitle are DOM nodes, filled by the chart script.
+
+    A canvas title reserves a fixed box sized for the widest case, which on a
+    phone took a third of the chart before the plot got anything. In the DOM it
+    reflows and grows the block downward instead. It also puts the finding
+    above the Rule 5.2 description rather than below it, which is the reading
+    order Rule 3.1 asks for and which the reading panel flagged.
+    """
     return f"""
       <div class="chart-block">
+        <h3 class="chart-title" id="{cid}-title"></h3>
+        <p class="chart-subtitle" id="{cid}-subtitle"></p>
         <p class="chart-summary" id="{cid}-summary">{summary}</p>
         <div class="chart{' chart-tall' if tall else ''}" id="{cid}"></div>
         <details class="data-table">

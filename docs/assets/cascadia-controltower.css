@@ -171,6 +171,19 @@ p { max-width: 76ch; }
 .chart { width: 100%; height: 320px; min-width: 0; }
 .chart-tall { height: 400px; }
 
+/* Rule 3.1 — the finding, at the top of the block, in the serif.
+   In the DOM rather than on the canvas so it reflows at narrow widths instead
+   of reserving a fixed box out of a fixed-height plot. */
+.chart-title {
+  font-family: var(--serif);
+  font-size: clamp(17px, 2.3vw, 21px);
+  font-weight: 600; line-height: 1.25;
+  margin: 0 0 4px; max-width: 66ch;
+  color: var(--basalt);
+}
+.chart-subtitle {
+  font-size: 13px; color: var(--slate); margin: 0 0 8px; max-width: 82ch;
+}
 .chart-summary {
   font-size: 13px; color: var(--slate); margin: 0 0 10px;
   max-width: 80ch;
