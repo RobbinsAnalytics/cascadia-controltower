@@ -142,7 +142,7 @@ computed 6592611ba17db74bc0201f297742f9fa562ef1304dbdb70e43136d59940aec17
 **PASS**
 
 ```
-scanned 52 text files
+scanned 58 text files
 unexpected CIK references: 0
 strict token scan: SKIPPED - CT_FORBIDDEN_TOKENS not set
 ```

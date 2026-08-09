@@ -133,6 +133,10 @@ def fetch(con):
 # Small helpers
 # ---------------------------------------------------------------------------
 
+def splits_only(d):
+    return [e for e in d["economics"] if e["classification"] == "split"]
+
+
 def pct(x, dp=1):
     return f"{x * 100:.{dp}f}%"
 
@@ -246,8 +250,12 @@ def render(d):
         "threshold": threshold_title,
         "inventory": f"The network holds {inv_mean:.2f} months of stock against the "
                      f"sector’s {band_lo:.2f}–{band_hi:.2f}, and dips in the same season",
-        "nodes": f"Stores ship {pct(store_share, 1)} of units at {cpu_mult:.1f}× the "
-                 f"primary FC’s cost per unit",
+        # The volume share is NOT on this plot — the only axis is cost per unit
+        # — so it cannot be in the title. It moves to the subtitle and the
+        # table, where a reader can check it. A title claiming a variable the
+        # chart does not plot is not rescued by tabulating it.
+        "nodes": f"Every store ships at more than double the primary FC’s cost "
+                 f"per unit, and the four of them are the four most expensive nodes",
     }
 
     # --- data tables -----------------------------------------------------
@@ -336,13 +344,54 @@ def render(d):
         f"<td class='why'>{m['tier_reason']}</td></tr>"
         for m in d["register"])
 
+    # AXIS BOUNDS ARE COMPUTED, NEVER TYPED.
+    #
+    # The first version of this page hard-coded them, and two charts clipped
+    # real data off the bottom of the plot: order fill reaches 77.95% in peak
+    # months against an axis that started at 82, so the deepest service failures
+    # in the dataset — the months the module is actually about — were invisible.
+    # Bounds now come from the series, with headroom reserved above the data for
+    # annotations so they never have to sit on top of a mark.
+    def bounds(values, pad_lo=1.5, pad_hi=1.5, floor=None, step=1.0):
+        lo, hi = min(values), max(values)
+        lo = (int((lo - pad_lo) / step)) * step
+        hi = (int((hi + pad_hi) / step) + 1) * step
+        if floor is not None:
+            lo = max(lo, floor)
+        return [round(lo, 3), round(hi, 3)]
+
+    f_unit = [r["unit_fill"] * 100 for r in d["fills"]]
+    f_line = [r["line_fill"] * 100 for r in d["fills"]]
+    f_order = [r["order_fill"] * 100 for r in d["fills"]]
+    f_cf = [r["cf_unit_fill"] * 100 for r in d["fills"]]
+    vel_vals = ([v["pct_partial"] for v in d["velocity"]]
+                + [v["pct_multi_node"] for v in d["velocity"]])
+    econ_vals = [e["split_premium_pct_of_margin"] * 100 for e in splits_only(d)]
+    thr_vals = [r["pct_of_split_orders"] for r in d["threshold"]
+                if r["threshold_usd"] > 4]
+    inv_vals = [r["inventory_sales_ratio"] for r in d["inventory"]]
+    node_vals = [n["cost_per_unit"] for n in d["nodes"]]
+
+    axes = {
+        # extra headroom on the bar charts is where the annotations live
+        "fills": bounds(f_unit + f_line + f_order, 4.0, 2.0, floor=0),
+        "cf": bounds(f_unit + f_cf, 4.0, 2.0, floor=0),
+        "velocity": [0, bounds(vel_vals, 0, 6, floor=0, step=2)[1]],
+        "economics": [0, bounds(econ_vals, 0, 4, floor=0)[1]],
+        "threshold": [0, bounds(thr_vals, 0, 5, floor=0)[1]],
+        "inventory": [0, max(band_hi + 0.4, max(inv_vals) + 0.4)],
+        "nodes": [0, bounds(node_vals, 0, 1.4, floor=0, step=0.5)[1]],
+    }
+
     payload = json.dumps({
         "fills": d["fills"], "velocity": d["velocity"],
         "economics": d["economics"], "threshold": d["threshold"],
         "inventory": d["inventory"], "nodes": d["nodes"],
         "censusBand": d["census_band"], "censusByMonth": d["census_by_month"],
-        "titles": titles,
+        "titles": titles, "axes": axes,
     }, default=float)
+
+    summaries = build_summaries(d, axes)
 
     labor_rows = "".join(
         f"<li><code>{l['soc_code']}</code> {l['occupation']} &mdash; "
@@ -389,46 +438,98 @@ def render(d):
         rec_residual=money(rec_residual, 0),
         gap_unit_line=f"{gap_unit_line:.2f}",
         # blocks
-        chart_fills=chart_block("c-fills", CHART_SUMMARIES["fills"], t_fills, tall=True),
-        chart_cf=chart_block("c-cf", CHART_SUMMARIES["counterfactual"], t_cf, tall=True),
-        chart_vel=chart_block("c-vel", CHART_SUMMARIES["velocity"], t_vel),
-        chart_econ=chart_block("c-econ", CHART_SUMMARIES["economics"], t_econ),
-        chart_thr=chart_block("c-thr", CHART_SUMMARIES["threshold"], t_thr),
-        chart_inv=chart_block("c-inv", CHART_SUMMARIES["inventory"], t_inv, tall=True),
-        chart_nodes=chart_block("c-nodes", CHART_SUMMARIES["nodes"], t_nodes),
+        chart_fills=chart_block("c-fills", summaries["fills"], t_fills, tall=True),
+        chart_cf=chart_block("c-cf", summaries["counterfactual"], t_cf, tall=True),
+        chart_vel=chart_block("c-vel", summaries["velocity"], t_vel),
+        chart_econ=chart_block("c-econ", summaries["economics"], t_econ),
+        chart_thr=chart_block("c-thr", summaries["threshold"], t_thr),
+        chart_inv=chart_block("c-inv", summaries["inventory"], t_inv, tall=True),
+        chart_nodes=chart_block("c-nodes", summaries["nodes"], t_nodes),
         register_rows=reg_rows,
         labor_rows=labor_rows,
     )
 
 
-# Rule 5.2 — construction and statistics only. No interpretation: blind readers
-# ranked domain insight among the LEAST useful description content, so putting
-# the finding in here would be an accessibility regression, not a bonus.
-CHART_SUMMARIES = {
-    "fills": "Line chart. Three series over 24 months, August 2024 to July 2026. "
-             "Vertical axis is percent, 80 to 100. Unit fill ranges 93.4 to 95.2 percent, "
-             "line fill 90.4 to 92.7, order fill 85.6 to 88.6. The three series do not "
-             "cross at any point.",
-    "counterfactual": "Line chart. Two series over 24 months. Vertical axis is percent, "
-                      "88 to 98. Unit fill as achieved runs above unit fill under a "
-                      "single-node-only rule in every month; the vertical distance "
-                      "between them ranges from about 2.2 to 3.1 percentage points.",
-    "velocity": "Grouped bar chart. Three velocity bands on the horizontal axis, two "
-                "bars each. Vertical axis is percent of order lines, 0 to 20. Both "
-                "series increase from band A to band C.",
-    "economics": "Bar chart. Two banners on the horizontal axis. Vertical axis is the "
-                 "split premium as a percent of gross margin on split orders, 0 to 15.",
-    "threshold": "Line chart. Nine cost thresholds from $4 to $20 on the horizontal "
-                 "axis. Vertical axis is the percent of that banner's split orders whose "
-                 "premium exceeds the threshold, 0 to 100. Both series fall as the "
-                 "threshold rises.",
-    "inventory": "Line chart with a shaded horizontal reference band. Vertical axis is "
-                 "months of sales held in inventory, 0 to 4. The plotted series runs "
-                 "below the shaded band in every month, and falls in November and "
-                 "December of both years.",
-    "nodes": "Bar chart. Six fulfilment nodes on the horizontal axis, ordered by cost "
-             "rank. Vertical axis is parcel cost per unit in dollars.",
-}
+def build_summaries(d, axes):
+    """Rule 5.2 — construction and statistics only, and COMPUTED.
+
+    No interpretation: blind readers ranked domain insight among the least
+    useful description content, so putting the finding in here would be an
+    accessibility regression rather than a bonus.
+
+    Every figure is computed. The first version of this page hard-coded these
+    sentences with invented ranges — it told a screen-reader user that order
+    fill ran 85.6 to 88.6 when it actually reaches 77.95. A sighted reader had
+    the plot to contradict it; a non-sighted reader had nothing. Description
+    text that can drift from the data is worse than no description, because it
+    is trusted.
+    """
+    def rng(vals, dp=1):
+        return f"{min(vals):.{dp}f} to {max(vals):.{dp}f}"
+
+    f = d["fills"]
+    unit = [r["unit_fill"] * 100 for r in f]
+    line = [r["line_fill"] * 100 for r in f]
+    order = [r["order_fill"] * 100 for r in f]
+    cf = [r["cf_unit_fill"] * 100 for r in f]
+    gaps = [u - c for u, c in zip(unit, cf)]
+    vel = {v["velocity_band"]: v for v in d["velocity"]}
+    econ = sorted(splits_only(d),
+                  key=lambda e: -e["split_premium_pct_of_margin"])
+    thr = sorted({r["threshold_usd"] for r in d["threshold"]})
+    inv = [r["inventory_sales_ratio"] for r in d["inventory"]]
+    nodes = sorted(d["nodes"], key=lambda n: -n["cost_per_unit"])
+    a = axes
+
+    return {
+        "fills":
+            f"Line chart. Three series over {len(f)} months, "
+            f"{f[0]['year_month']} to {f[-1]['year_month']}. Vertical axis is "
+            f"percent, {a['fills'][0]:.0f} to {a['fills'][1]:.0f}. Unit fill "
+            f"ranges {rng(unit)} percent, line fill {rng(line)}, order fill "
+            f"{rng(order)}. The three series do not cross at any point.",
+        "counterfactual":
+            f"Line chart. Two series over {len(f)} months. Vertical axis is "
+            f"percent, {a['cf'][0]:.0f} to {a['cf'][1]:.0f}. Unit fill as "
+            f"achieved ranges {rng(unit)} percent and runs above unit fill "
+            f"under a single-node-only rule in every month; that series ranges "
+            f"{rng(cf)}. The vertical distance between them ranges "
+            f"{rng(gaps, 2)} percentage points.",
+        "velocity":
+            f"Grouped bar chart. Three SKU velocity bands on the horizontal "
+            f"axis, two bars each. Vertical axis is percent of order lines, 0 "
+            f"to {a['velocity'][1]:.0f}. Lines shipping short: "
+            f"{vel['A']['pct_partial']:.2f} percent for band A, "
+            f"{vel['B']['pct_partial']:.2f} for B, {vel['C']['pct_partial']:.2f} "
+            f"for C. Lines using more than one node: "
+            f"{vel['A']['pct_multi_node']:.2f}, {vel['B']['pct_multi_node']:.2f}, "
+            f"{vel['C']['pct_multi_node']:.2f}. Both series increase from A to C.",
+        "economics":
+            f"Bar chart. Two banners on the horizontal axis. Vertical axis is "
+            f"the split premium as a percent of gross margin on split orders, 0 "
+            f"to {a['economics'][1]:.0f}. "
+            + ", ".join(f"{e['banner_name']} {e['split_premium_pct_of_margin']*100:.2f} "
+                        f"percent" for e in econ) + ".",
+        "threshold":
+            f"Line chart. Cost thresholds from ${thr[1]:.0f} to ${thr[-1]:.0f} on "
+            f"the horizontal axis. Vertical axis is the percent of that banner's "
+            f"split orders whose premium exceeds the threshold, 0 to "
+            f"{a['threshold'][1]:.0f}. Both series fall as the threshold rises, "
+            f"the off-price series above the premium series throughout.",
+        "inventory":
+            f"Line chart with a shaded horizontal reference band. Vertical axis "
+            f"is months of sales held in inventory, 0 to {a['inventory'][1]:.1f}. "
+            f"The plotted series ranges {min(inv):.2f} to {max(inv):.2f} months "
+            f"and runs below the shaded band, which spans "
+            f"{d['census_band'][0]:.2f} to {d['census_band'][1]:.2f}, in every "
+            f"month. The series falls in November and December of both years.",
+        "nodes":
+            f"Bar chart. {len(nodes)} fulfilment nodes on the horizontal axis, "
+            f"ordered most to least expensive. Vertical axis is parcel cost per "
+            f"unit in dollars, 0 to {a['nodes'][1]:.2f}. Values run from "
+            f"${nodes[0]['cost_per_unit']:.2f} at {nodes[0]['node_name']} to "
+            f"${nodes[-1]['cost_per_unit']:.2f} at {nodes[-1]['node_name']}.",
+    }
 
 
 def main():
