@@ -104,7 +104,8 @@ PAGE = """<!DOCTYPE html>
 
     <p>Meanwhile the thing actually costing money is invisible in all three.
     <strong>An order split across two nodes still counts as filled.</strong> It is 100%
-    filled, on time, in full — and it costs {mean_premium} more to ship.</p>
+    filled, on time, in full — and it costs {off_premium} more to ship in the off-price
+    banner and {prem_premium} more in the premium one.</p>
 
     <p>The definitional gap and the economic leak are the same phenomenon.
     <strong>Fill rate looks healthiest exactly where splitting is worst</strong>, because

@@ -442,6 +442,12 @@ def render(d):
         sga_lo=pct(sga_lo, 1), sga_hi=pct(sga_hi, 1),
         seed=d["seed"], content_hash=d["content_hash"],
         mean_premium=money(mean_premium),
+        # The panel caught the title asserting "the same $5.46 parcel" when the
+        # two banners differ. The thesis prose carried the same blended figure,
+        # which was true but not obviously the same number as the two the chart
+        # now names. Both premiums are stated here too.
+        off_premium=money(off["avg_split_premium"]),
+        prem_premium=money(prem["avg_split_premium"]),
         off_margin_pct=pct(off["split_premium_pct_of_margin"], 1),
         prem_margin_pct=pct(prem["split_premium_pct_of_margin"], 1),
         off_leak=money(off["total_split_premium"], 0),
