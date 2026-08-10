@@ -15,7 +15,7 @@ A distribution centre reports 94% fill rate to Operations, 92% to the merchant t
 :::
 :::
 
-[Open the module](https://www.robbinsanalytics.com/cascadia-controltower/){.btn .btn-primary}
+[Fill Rate & Split Cost](https://www.robbinsanalytics.com/cascadia-controltower/){.btn .btn-primary}
 
 ---
 
@@ -127,3 +127,34 @@ That is the value of the exercise, and it is why the panel is worth its cost: **
 - **A calibration target was missed and is reported missed**, with the three ways of forcing it that were tried and rejected.
 - **The shipping render has not itself been panelled.** The panel read the previous version; the thirteen fixes made in response are author work, unread by anyone blind.
 - **There is no live BigQuery or Looker Studio view.** The warehouse ships as DuckDB. Said plainly rather than implied by omission.
+
+---
+
+## Tech Stack
+
+<div class="tech-chips">
+<span class="chip">Python</span>
+<span class="chip">pandas</span>
+<span class="chip">DuckDB</span>
+<span class="chip">dbt Core</span>
+<span class="chip">Star Schema</span>
+<span class="chip">Apache ECharts</span>
+<span class="chip">Static HTML / JS</span>
+<span class="chip">WCAG 2.2 AA</span>
+<span class="chip">GitHub Pages</span>
+<span class="chip">Git</span>
+</div>
+
+---
+
+## Disclosure
+
+Every order, style, size, shipment, labor hour and dollar in this module is synthetic, produced by a seeded generator committed to the repository. **Alder & Vance** and **Off-Main** are invented banners of an invented operator, and no real company is the subject of this analysis. The three public datasets that constrain the generator — BLS OEWS wages, US Census MRTS retail inventories, and the SEC EDGAR XBRL filings of Macy's, Kohl's and Dillard's — are real, and are named wherever they are used; they serve as external benchmarks, not as subjects. Independent portfolio project, not affiliated with or endorsed by any company, and not based on any non-public information. It illustrates a distribution-centre governance design on invented operational data only.
+
+---
+
+## Links
+
+- [Fill Rate & Split Cost](https://www.robbinsanalytics.com/cascadia-controltower/) — seven charts, the certified metric register, and the realism audits
+- [Build Repository](https://github.com/RobbinsAnalytics/cascadia-controltower) — generator, dbt project, validation suite, and the governance documents
+- [Cascadia Architecture Overview](../cascadia.qmd)
