@@ -7,7 +7,7 @@ published as static HTML from `docs/` to
 `www.robbinsanalytics.com/cascadia-controltower/`.
 
 The build brief is
-`C:\Projects\cascadia-design-system\docs\Cascadia_ControlTower_CC_Handoff_2026-08-07.md`,
+`C:\Projects\cascadia-standards\docs\Cascadia_ControlTower_CC_Handoff_2026-08-07.md`,
 amended by the addendum beside it. **The addendum wins where the two differ** —
 the original handoff is wrong on three points and they are listed there.
 
@@ -120,7 +120,7 @@ build adds a new module.
 ## Charts
 
 The portfolio runs a written visualization standard at
-`C:\Projects\cascadia-design-system\design-system\VIZ-PRINCIPLES.md` (v2.2) with
+`C:\Projects\cascadia-standards\design-system\VIZ-PRINCIPLES.md` (v2.3) with
 a scored checklist at `CHART-REVIEW.md` beside it. **Read both before building any chart.** Every
 chart title is a complete sentence stating the finding, never a label. Every
 chart carries a real data table. WCAG 2.2 AA throughout.
