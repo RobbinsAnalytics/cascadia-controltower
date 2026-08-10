@@ -44,8 +44,7 @@
       "Bash(curl -sSI https://www.census.gov/*)",
       "Bash(curl -sSI https://www.bls.gov/*)",
 
-      "Read(//c/Projects/**)",
-      "Read(//c/Users/Ajayr/OneDrive/Claude Projects/Portfolio Project/**)"
+      "Read(//c/Projects/**)"
     ],
     "ask": [
       "Bash(git push*)",
