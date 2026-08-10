@@ -387,6 +387,25 @@ so v2.3 can replace the mechanism without hunting through the file.
 annotations intact, nothing clipped. They are narrow, not broken. Recorded as a
 known limit rather than reported as a pass.
 
+### A regression the move to a DOM title introduced
+
+`cascadiaTitle()` renders its subtitle in Source Serif via the theme's
+`subtextStyle`. Moving the title out of the canvas kept the text and lost the
+typography — the subtitle silently inherited the body sans and landed at the
+same face, size and colour as the Rule 5.2 description below it. Two elements
+doing different jobs, rendered identically, read as one undifferentiated grey
+block, and it was worst at phone width where they stack.
+
+Fixed by letting the two typefaces do the work the system already assigns them:
+the subtitle is serif and sits 3px under the title so the pair reads as one
+title block; the description is sans, 12.5px, set apart by 16px of space. No
+rule, no tint, no box — Rule 2.5 would have priced any of those, and none was
+needed. Slate on paper stays at 5.82:1.
+
+Worth carrying to v2.3 alongside the palette-as-text finding: if the system ever
+specifies a DOM title block rather than a canvas one, *subtitle is serif,
+description is sans* is the rule that stops this collapse recurring.
+
 ### The data tables (Rule 5.1 layer 2)
 
 The charts were only half the narrow-screen problem. Five of the eight tables

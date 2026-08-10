@@ -178,15 +178,35 @@ p { max-width: 76ch; }
   font-family: var(--serif);
   font-size: clamp(17px, 2.3vw, 21px);
   font-weight: 600; line-height: 1.25;
-  margin: 0 0 4px; max-width: 66ch;
+  margin: 0 0 3px; max-width: 66ch;
   color: var(--basalt);
 }
+
+/* The title and the subtitle are ONE block and the serif says so. The
+   subtitle is the metric-by-dimension line in secondary ink — part of the
+   finding, not a separate remark — which is what the theme's own
+   `subtextStyle` did while the title still lived on the canvas. Moving the
+   title into the DOM lost that, and the subtitle silently inherited the body
+   sans, landing it at the same face, size and colour as the description
+   below. Two different jobs rendered identically read as one grey block. */
 .chart-subtitle {
-  font-size: 13px; color: var(--slate); margin: 0 0 8px; max-width: 82ch;
+  font-family: var(--serif);
+  font-size: clamp(14px, 1.6vw, 15.5px);
+  line-height: 1.4;
+  color: var(--slate);
+  margin: 0; max-width: 74ch;
 }
+
+/* The Rule 5.2 description is apparatus, not voice: chart type, encodings,
+   axis ranges, extrema. Sans, smaller, and set apart by space rather than by
+   a rule or a tint — the differentiation comes from the two typefaces already
+   doing the two jobs the system specifies for them. Slate on paper is 5.82:1,
+   so it stays comfortably above the AA floor at this size. */
 .chart-summary {
-  font-size: 13px; color: var(--slate); margin: 0 0 10px;
-  max-width: 80ch;
+  font-family: var(--sans);
+  font-size: 12.5px; line-height: 1.5;
+  color: var(--slate);
+  margin: 16px 0 10px; max-width: 80ch;
 }
 
 details.data-table { margin: 8px 0 4px; }
