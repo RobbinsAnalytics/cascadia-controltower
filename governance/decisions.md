@@ -148,6 +148,25 @@ Looker Studio view because there is no cloud project. Said plainly on the page.
 
 ---
 
+## Publishing
+
+**27 · The social card and the favicon are vendored, not referenced across
+repos.** The page shipped with no Open Graph tags at all and rendered as a
+generic card the first time the URL was shared; that is fixed. The card is
+produced by the site repo's `tools/build_thumbs.py` from one `MODULES` table, so
+the tidy option was to point `og:image` at the site's copy and keep a single
+source of truth. It was rejected. A cross-repo reference leaves this page's card
+and tab icon dependent on files another repository can rename, and the failure
+would be silent — the page would keep serving, just wrongly, exactly as it did
+before. `echarts.min.js` and the chart theme are already vendored on the same
+reasoning: a module that serves itself should serve all of itself. **The cost is
+a copy that can drift**, so if `build_thumbs.py` is re-run for this slug the
+output has to be re-copied here. `og:image` must stay absolute — a scraper does
+not resolve relative paths — while the icon links are relative and resolve
+against the page.
+
+---
+
 ## Still open
 
 - **The shipping render has not been panelled.** The panel read render 2; render
