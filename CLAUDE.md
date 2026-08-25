@@ -104,15 +104,42 @@ case study page, navbar, home card, family page, OG thumbnail, link check.
 
 ## Committing
 
-**Stage by name — never `git add -A` or `git add .`.** Both are denied in
-`.claude/settings.json`, and a `PreToolUse` hook refuses any commit carrying a
-whitespace-only diff. Verify with
+**Stage by name — never `git add -A` or `git add .`.** A `PreToolUse` hook,
+`.claude/hooks/no_blanket_add_or_force_push.py`, refuses both — along with
+`git push --force` and its variants.
+
+*This paragraph used to credit the `deny` block in `.claude/settings.json`, and
+that was wrong.* Permission rules do not bind under `bypassPermissions`, which
+is how these sessions run; the deny entries are still there and still bind when
+bypass is off, but they were never what was stopping anything. **Hooks bind
+under bypass and permission rules do not** — so the protection is real now for a
+different reason than the one this file claimed. Verified 2026-08-25 by an
+actual refusal, not by reading the config.
+
+**Two commit gates run from git, not from the tool layer.** `.githooks/`
+carries `no_whitespace_commits.py` (refuses a whitespace- or line-ending-only
+diff) and `secret_scan.py` (refuses staged credentials), chained by
+`.githooks/pre-commit`. Verify a suspect file with
 `git diff --ignore-all-space --numstat -- <file>`; empty output means the diff
 is noise and the file must not be staged.
 
-**Run this repo's commits from a session rooted in this repo.** Hooks and this
-file load only from the primary working directory — a directory grant shares
-files and skills but never hooks.
+The whitespace check was a `PreToolUse` hook until 2026-08-25 and **failed open**:
+`git add noisy.md && git commit` staged and committed inside a single tool call
+the hook had already read, and sailed through. A git hook runs after the index is
+final and cannot be outrun by shell syntax. There is now one gate per concern,
+not two half-gates.
+
+**Activation does not travel with a clone.** The scripts are tracked; the
+config line is not. A fresh clone has no commit gate until:
+
+```
+git config core.hooksPath .githooks
+```
+
+**Run this repo's commits from a session rooted in this repo.** The `PreToolUse`
+hook and this file load only from the primary working directory — a directory
+grant shares files and skills but never hooks. The two git hooks are the
+exception: they run wherever git runs, once `core.hooksPath` is set.
 
 **Do not modify any existing Cascadia module or existing site content.** This
 build adds a new module.
