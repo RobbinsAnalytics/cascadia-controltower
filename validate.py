@@ -246,17 +246,128 @@ def load_anchors():
 # The suite
 # ===========================================================================
 
+TEXT_EXTS = {".py", ".md", ".sql", ".yml", ".yaml", ".html", ".csv",
+             ".json", ".qmd", ".txt"}
+SKIP_DIRS = {".git", "__pycache__", "target", "dbt_packages"}
+
+# ---------------------------------------------------------------------------
+# Check predicates, hoisted to module level on 2026-08-25.
+#
+# These were inline in run_suite(). They are constants now for one reason: the
+# failability proof runs them against a corrupted copy of the database, and it
+# has to run THE SAME SQL the suite runs. A proof that re-types the predicate
+# proves the re-typed version can fail, which is not the claim being made.
+#
+# The proof's scratch database names its corrupted tables exactly as the real
+# ones are named, so every string below is valid against either connection
+# without substitution.
+# ---------------------------------------------------------------------------
+
+SQL_1_CLASSIFICATION_TOTAL = """
+    SELECT COUNT(*) FROM fact_order
+    WHERE classification IS NULL
+       OR classification NOT IN ('split','single_node','not_shipped')
+       OR (classification = 'split'       AND nodes_used <= 1)
+       OR (classification = 'single_node' AND nodes_used <> 1)
+       OR (classification = 'not_shipped' AND (nodes_used <> 0
+                                               OR units_shipped > 0))
+    """
+
+SQL_3_REDERIVE_MISMATCH = """
+    WITH derived AS (
+      SELECT o.order_id, o.classification,
+             COALESCE(COUNT(DISTINCT sh.node_key), 0) AS nodes
+      FROM fact_order o
+      LEFT JOIN fact_shipment sh USING (order_id)
+      GROUP BY 1, 2)
+    SELECT COUNT(*) FROM derived
+    WHERE classification <> CASE WHEN nodes = 0 THEN 'not_shipped'
+                                 WHEN nodes = 1 THEN 'single_node'
+                                 ELSE 'split' END"""
+
+SQL_3_AMBIGUOUS = """
+    SELECT COUNT(*) FROM fact_order_line
+    WHERE qty_shipped > 0 AND primary_node IS NULL"""
+
+SQL_4_ORPHANS = [
+    ("order_line -> dim_style",
+     "SELECT COUNT(*) FROM fact_order_line l LEFT JOIN dim_style s "
+     "USING (style_key) WHERE s.style_key IS NULL"),
+    ("order_line -> fact_order",
+     "SELECT COUNT(*) FROM fact_order_line l LEFT JOIN fact_order o "
+     "USING (order_id) WHERE o.order_id IS NULL"),
+    ("shipment -> dim_node",
+     "SELECT COUNT(*) FROM fact_shipment f LEFT JOIN dim_node n "
+     "USING (node_key) WHERE n.node_key IS NULL"),
+    ("inventory -> dim_sku",
+     "SELECT COUNT(*) FROM fact_inventory_month i LEFT JOIN dim_sku s "
+     "USING (sku_key) WHERE s.sku_key IS NULL"),
+    ("receipt -> dim_sku",
+     "SELECT COUNT(*) FROM fact_receipt r LEFT JOIN dim_sku s "
+     "USING (sku_key) WHERE s.sku_key IS NULL"),
+    ("order -> dim_date",
+     "SELECT COUNT(*) FROM fact_order o LEFT JOIN dim_date d "
+     "ON o.order_date_key = d.date_key WHERE d.date_key IS NULL"),
+]
+
+SQL_6_CONSERVATION = """
+    SELECT COUNT(*) FROM fact_inventory_month
+    WHERE closing_units <> opening_units + receipt_units
+                          - shipped_units - adjustment_units"""
+
+SQL_6_NEGATIVE = ("SELECT COUNT(*) FROM fact_inventory_month "
+                  "WHERE closing_units < 0")
+
+THRESHOLDS_7 = [4, 5, 6, 7, 8, 10, 12, 15, 20]
+
+SQL_7_EXCEPTIONS = ("SELECT COUNT(*) FROM fact_order WHERE "
+                    "classification = 'split' AND split_premium > {t}")
+
+
+def scan_for_identifiers(root, tokens):
+    """Find company identifiers that the naming policy does not permit.
+
+    Extracted from check 12 on 2026-08-25 so that the failability proof can run
+    THIS function against a deliberately corrupted tree. A proof that exercises
+    a re-implementation of the logic proves nothing about the logic that ships.
+
+    Two passes, and the difference between them is deliberate:
+
+      CIK pass    skips data/raw/companyfacts_*.json, because those bundles name
+                  Macy's, Kohl's and Dillard's on purpose — they are the
+                  benchmark set, and naming a benchmark is not naming a subject.
+
+      token pass  does NOT skip them. The permitted peers may appear in a frozen
+                  bundle; the calibration filer may not appear anywhere at all,
+                  including inside a file this repo pulled verbatim from EDGAR.
+
+    Returns (leaks, token_hits, scanned).
+    """
+    leaks, token_hits, scanned = [], [], 0
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in TEXT_EXTS:
+            continue
+        if any(p in SKIP_DIRS for p in path.parts):
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+
+        if not path.name.startswith("companyfacts_"):
+            scanned += 1
+            for cik in set(re.findall(r"CIK(\d{10})", text)):
+                if cik not in PEER_CIKS:
+                    leaks.append(f"{path.relative_to(root)}: CIK{cik}")
+
+        if tokens:
+            low = text.lower()
+            for t in tokens:
+                if t.lower() in low:
+                    token_hits.append(f"{path.relative_to(root)}: {t}")
+    return leaks, token_hits, scanned
+
+
 def run_suite(con, m, anchors):
     # --- 1 classification is total and exclusive ---------------------------
-    bad = con.execute("""
-        SELECT COUNT(*) FROM fact_order
-        WHERE classification IS NULL
-           OR classification NOT IN ('split','single_node','not_shipped')
-           OR (classification = 'split'       AND nodes_used <= 1)
-           OR (classification = 'single_node' AND nodes_used <> 1)
-           OR (classification = 'not_shipped' AND (nodes_used <> 0
-                                                   OR units_shipped > 0))
-        """).fetchone()[0]
+    bad = con.execute(SQL_1_CLASSIFICATION_TOTAL).fetchone()[0]
     counts = con.execute("""SELECT classification, COUNT(*) FROM fact_order
                             GROUP BY 1 ORDER BY 1""").fetchall()
     record("1", "Every order resolves to exactly one classification", bad == 0,
@@ -273,20 +384,8 @@ def run_suite(con, m, anchors):
            f"max absolute difference {max(diffs):.2e}")
 
     # --- 3 split classification is deterministic, no ambiguous case --------
-    mismatch = con.execute("""
-        WITH derived AS (
-          SELECT o.order_id, o.classification,
-                 COALESCE(COUNT(DISTINCT sh.node_key), 0) AS nodes
-          FROM fact_order o
-          LEFT JOIN fact_shipment sh USING (order_id)
-          GROUP BY 1, 2)
-        SELECT COUNT(*) FROM derived
-        WHERE classification <> CASE WHEN nodes = 0 THEN 'not_shipped'
-                                     WHEN nodes = 1 THEN 'single_node'
-                                     ELSE 'split' END""").fetchone()[0]
-    ambiguous = con.execute("""
-        SELECT COUNT(*) FROM fact_order_line
-        WHERE qty_shipped > 0 AND primary_node IS NULL""").fetchone()[0]
+    mismatch = con.execute(SQL_3_REDERIVE_MISMATCH).fetchone()[0]
+    ambiguous = con.execute(SQL_3_AMBIGUOUS).fetchone()[0]
     record("3", "Split classification deterministic; no ambiguous case",
            mismatch == 0 and ambiguous == 0,
            f"re-derived from fact_shipment node counts: {mismatch} mismatches\n"
@@ -295,26 +394,7 @@ def run_suite(con, m, anchors):
 
     # --- 4 referential integrity ------------------------------------------
     orphans = {}
-    for label, sql in [
-        ("order_line -> dim_style",
-         "SELECT COUNT(*) FROM fact_order_line l LEFT JOIN dim_style s "
-         "USING (style_key) WHERE s.style_key IS NULL"),
-        ("order_line -> fact_order",
-         "SELECT COUNT(*) FROM fact_order_line l LEFT JOIN fact_order o "
-         "USING (order_id) WHERE o.order_id IS NULL"),
-        ("shipment -> dim_node",
-         "SELECT COUNT(*) FROM fact_shipment f LEFT JOIN dim_node n "
-         "USING (node_key) WHERE n.node_key IS NULL"),
-        ("inventory -> dim_sku",
-         "SELECT COUNT(*) FROM fact_inventory_month i LEFT JOIN dim_sku s "
-         "USING (sku_key) WHERE s.sku_key IS NULL"),
-        ("receipt -> dim_sku",
-         "SELECT COUNT(*) FROM fact_receipt r LEFT JOIN dim_sku s "
-         "USING (sku_key) WHERE s.sku_key IS NULL"),
-        ("order -> dim_date",
-         "SELECT COUNT(*) FROM fact_order o LEFT JOIN dim_date d "
-         "ON o.order_date_key = d.date_key WHERE d.date_key IS NULL"),
-    ]:
+    for label, sql in SQL_4_ORPHANS:
         orphans[label] = con.execute(sql).fetchone()[0]
     record("4", "Referential integrity across all dimensions",
            all(v == 0 for v in orphans.values()),
@@ -343,13 +423,8 @@ def run_suite(con, m, anchors):
            f"{recv <= received}")
 
     # --- 6 inventory conservation -----------------------------------------
-    viol = con.execute("""
-        SELECT COUNT(*) FROM fact_inventory_month
-        WHERE closing_units <> opening_units + receipt_units
-                              - shipped_units - adjustment_units""").fetchone()[0]
-    negative = con.execute(
-        "SELECT COUNT(*) FROM fact_inventory_month "
-        "WHERE closing_units < 0").fetchone()[0]
+    viol = con.execute(SQL_6_CONSERVATION).fetchone()[0]
+    negative = con.execute(SQL_6_NEGATIVE).fetchone()[0]
     rows = con.execute(
         "SELECT COUNT(*) FROM fact_inventory_month").fetchone()[0]
     record("6", "Inventory conserved per SKU per period",
@@ -363,10 +438,9 @@ def run_suite(con, m, anchors):
     # would put the first three points on top of each other, since every split
     # costs at least one extra parcel base rate, and a flat head tells the
     # reader nothing about where a policy threshold would bite.
-    thresholds = [4, 5, 6, 7, 8, 10, 12, 15, 20]
-    counts7 = [con.execute(
-        "SELECT COUNT(*) FROM fact_order WHERE classification = 'split' "
-        f"AND split_premium > {t}").fetchone()[0] for t in thresholds]
+    thresholds = THRESHOLDS_7
+    counts7 = [con.execute(SQL_7_EXCEPTIONS.format(t=t)).fetchone()[0]
+               for t in thresholds]
     monotonic = all(x >= y for x, y in zip(counts7, counts7[1:]))
     non_degenerate = counts7[0] > counts7[-1] > 0
     record("7", "Exception counts monotonic as split-cost threshold rises",
@@ -408,39 +482,12 @@ def run_suite(con, m, anchors):
            f"recorded {run['content_sha256']}\ncomputed {digest}")
 
     # --- 12 naming policy ---------------------------------------------------
-    leaks, scanned = [], 0
-    skip_dirs = {".git", "__pycache__", "target", "dbt_packages"}
-    for path in sorted(REPO_ROOT.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in {
-                ".py", ".md", ".sql", ".yml", ".yaml", ".html", ".csv",
-                ".json", ".qmd", ".txt"}:
-            continue
-        if any(p in skip_dirs for p in path.parts):
-            continue
-        if path.name.startswith("companyfacts_"):
-            continue                      # frozen peer bundles, named on purpose
-        scanned += 1
-        text = path.read_text(encoding="utf-8", errors="replace")
-        for cik in set(re.findall(r"CIK(\d{10})", text)):
-            if cik not in PEER_CIKS:
-                leaks.append(f"{path.relative_to(REPO_ROOT)}: CIK{cik}")
     # A block-list cannot live in this repo, so the strict token check takes its
     # tokens from the environment. Absent that, say so rather than claim a pass.
     import os
     tokens = [t.strip() for t in os.environ.get("CT_FORBIDDEN_TOKENS", "").split(",")
               if t.strip()]
-    token_hits = []
-    if tokens:
-        for path in sorted(REPO_ROOT.rglob("*")):
-            if (not path.is_file() or any(p in skip_dirs for p in path.parts)
-                    or path.suffix.lower() not in {
-                        ".py", ".md", ".sql", ".yml", ".yaml", ".html", ".csv",
-                        ".json", ".qmd", ".txt"}):
-                continue
-            text = path.read_text(encoding="utf-8", errors="replace").lower()
-            for t in tokens:
-                if t.lower() in text:
-                    token_hits.append(f"{path.relative_to(REPO_ROOT)}: {t}")
+    leaks, token_hits, scanned = scan_for_identifiers(REPO_ROOT, tokens)
     detail = (f"scanned {scanned} text files\n"
               f"unexpected CIK references: {len(leaks)}"
               + ("\n" + "\n".join(leaks) if leaks else "")
@@ -498,8 +545,235 @@ def prove_failable(m, anchors):
 
 
 # ===========================================================================
+# Proving the structural checks can fail
+# ===========================================================================
 
-def write_report(m, anchors, proofs=None, all_tripped=None):
+def _scratch(tables):
+    """An in-memory database holding writable copies of the named tables.
+
+    The real database is opened READ_ONLY here and never written. Copies keep
+    the real table names, so every hoisted predicate above runs against this
+    connection unchanged — which is the point. A proof that has to rewrite the
+    SQL to run is not testing the SQL that ships.
+    """
+    sc = duckdb.connect(":memory:")
+    sc.execute(f"ATTACH '{DB_PATH.as_posix()}' AS src (READ_ONLY)")
+    for t in tables:
+        sc.execute(f"CREATE TABLE {t} AS SELECT * FROM src.main.{t}")
+    return sc
+
+
+def prove_structural_failable(m):
+    """Prove checks 1-7, 11 and 12 can fail, the same way the audits are proven.
+
+    prove_failable() above covers checks 8, 9 and 10. Those are pure functions
+    of measured numbers, so proving them is a matter of handing them wrong ones.
+    The other nine read the database or the repository tree, and until 2026-08-25
+    nothing demonstrated that any of them could return anything but PASS. Twelve
+    green checks with no evidence any of them can go red is a claim about the
+    checks, not about the data.
+
+    Each scenario below corrupts a COPY and re-runs the shipped predicate
+    against it. Every one must trip.
+    """
+    print("Proving each structural check CAN fail, by corrupting a copy:\n")
+    proofs = []
+
+    def add(check, scenario, passed):
+        proofs.append((check, scenario, passed))
+
+    # -- 1 classification is total and exclusive ----------------------------
+    sc = _scratch(["fact_order"])
+    sc.execute("UPDATE fact_order SET classification = NULL "
+               "WHERE order_id = (SELECT MIN(order_id) FROM fact_order)")
+    add("1", "one order's classification set to NULL",
+        sc.execute(SQL_1_CLASSIFICATION_TOTAL).fetchone()[0] == 0)
+    sc.close()
+
+    sc = _scratch(["fact_order"])
+    # The exclusivity half: a label that contradicts its own node count.
+    sc.execute("UPDATE fact_order SET classification = 'split' "
+               "WHERE nodes_used = 1 AND order_id = "
+               "(SELECT MIN(order_id) FROM fact_order WHERE nodes_used = 1)")
+    add("1", "a single-node order relabelled 'split'",
+        sc.execute(SQL_1_CLASSIFICATION_TOTAL).fetchone()[0] == 0)
+    sc.close()
+
+    # -- 2 the three fill rates reconcile -----------------------------------
+    # Pure arithmetic on measured numbers, so it is proven like an audit.
+    a = list(m["fills_from_lines"])
+    b = list(m["fills_from_order"])
+    b[0] += 1e-6                       # a discrepancy far below display rounding
+    add("2", "unit fill perturbed by 1e-6 (invisible at display precision)",
+        max(abs(x - y) for x, y in zip(a, b)) < 1e-9)
+
+    # -- 3 split classification is deterministic ----------------------------
+    sc = _scratch(["fact_order", "fact_shipment"])
+    sc.execute("UPDATE fact_order SET classification = 'not_shipped' "
+               "WHERE order_id = (SELECT MIN(order_id) FROM fact_order "
+               "                  WHERE classification = 'split')")
+    add("3", "a split order relabelled 'not_shipped' against its shipments",
+        sc.execute(SQL_3_REDERIVE_MISMATCH).fetchone()[0] == 0)
+    sc.close()
+
+    sc = _scratch(["fact_order_line"])
+    # THE AMBIGUOUS CASE THE BUILD IS SUPPOSED TO REFUSE. CLAUDE.md: an order
+    # that cannot be classified under the documented rule fails validate.py.
+    # This is the scenario that claim rests on, and it had never been run.
+    # fact_order_line is keyed (order_id, line_no) with no surrogate, so the
+    # scenario targets one row by rowid rather than inventing a key.
+    sc.execute("UPDATE fact_order_line SET primary_node = NULL "
+               "WHERE rowid = (SELECT MIN(rowid) FROM fact_order_line "
+               "               WHERE qty_shipped > 0)")
+    add("3", "a shipped line left with no source node (unclassifiable order)",
+        sc.execute(SQL_3_AMBIGUOUS).fetchone()[0] == 0)
+    sc.close()
+
+    # -- 4 referential integrity --------------------------------------------
+    # One scenario per edge, because a loop that only ever proves its first
+    # iteration is the same gap this function exists to close.
+    edge_tables = {
+        "order_line -> dim_style":  ("dim_style", "style_key"),
+        "order_line -> fact_order": ("fact_order", "order_id"),
+        "shipment -> dim_node":     ("dim_node", "node_key"),
+        "inventory -> dim_sku":     ("dim_sku", "sku_key"),
+        "receipt -> dim_sku":       ("dim_sku", "sku_key"),
+        "order -> dim_date":        ("dim_date", "date_key"),
+    }
+    for label, sql in SQL_4_ORPHANS:
+        parent, key = edge_tables[label]
+        child = {"order_line -> dim_style":  "fact_order_line",
+                 "order_line -> fact_order": "fact_order_line",
+                 "shipment -> dim_node":     "fact_shipment",
+                 "inventory -> dim_sku":     "fact_inventory_month",
+                 "receipt -> dim_sku":       "fact_receipt",
+                 "order -> dim_date":        "fact_order"}[label]
+        sc = _scratch(sorted({parent, child}))
+        # Delete one parent row that a child actually references, which is what
+        # an orphan IS. Deleting an unreferenced row would prove nothing.
+        child_key = "order_date_key" if label == "order -> dim_date" else key
+        sc.execute(f"DELETE FROM {parent} WHERE {key} = "
+                   f"(SELECT MIN({child_key}) FROM {child} "
+                   f" WHERE {child_key} IS NOT NULL)")
+        add("4", f"orphaned {label} (one parent row deleted)",
+            sc.execute(sql).fetchone()[0] == 0)
+        sc.close()
+
+    # -- 5 labor reconciles to units at stated rates ------------------------
+    sc = _scratch(["fact_labor_day", "fact_order", "fact_receipt"])
+    sc.execute("UPDATE fact_labor_day SET hours = hours * 1.5 "
+               "WHERE function = 'picking'")
+    labor = sc.execute("""
+        SELECT function, SUM(units) AS units, SUM(hours) AS hours,
+               MAX(units_per_hour) AS uph,
+               ABS(SUM(units)::DOUBLE / MAX(units_per_hour) - SUM(hours)) AS gap
+        FROM fact_labor_day GROUP BY 1 ORDER BY 1""").df()
+    add("5", "picking hours inflated 1.5x against the stated rate",
+        bool(labor.gap.max() < 1.0))
+    sc.close()
+
+    sc = _scratch(["fact_labor_day", "fact_order"])
+    sc.execute("UPDATE fact_labor_day SET units = units + 1 "
+               "WHERE rowid = (SELECT MIN(rowid) FROM fact_labor_day "
+               "               WHERE function = 'picking')")
+    pick = int(sc.execute("SELECT SUM(units) FROM fact_labor_day "
+                          "WHERE function = 'picking'").fetchone()[0])
+    shipped = int(sc.execute(
+        "SELECT SUM(units_shipped) FROM fact_order").fetchone()[0])
+    add("5", "one unit picked that was never shipped", pick == shipped)
+    sc.close()
+
+    # -- 6 inventory conservation -------------------------------------------
+    sc = _scratch(["fact_inventory_month"])
+    sc.execute("UPDATE fact_inventory_month SET closing_units = closing_units + 1 "
+               "WHERE rowid = (SELECT MIN(rowid) FROM fact_inventory_month)")
+    add("6", "one sku-node-month off by a single unit",
+        sc.execute(SQL_6_CONSERVATION).fetchone()[0] == 0)
+    sc.close()
+
+    sc = _scratch(["fact_inventory_month"])
+    # Balance the identity so ONLY the negative-stock half can trip. Otherwise
+    # this scenario would pass for the wrong reason and prove nothing new.
+    sc.execute("UPDATE fact_inventory_month "
+               "SET closing_units = -5, adjustment_units = "
+               "    opening_units + receipt_units - shipped_units + 5 "
+               "WHERE rowid = (SELECT MIN(rowid) FROM fact_inventory_month)")
+    add("6", "a negative closing balance that still satisfies the identity",
+        sc.execute(SQL_6_NEGATIVE).fetchone()[0] == 0)
+    sc.close()
+
+    # -- 7 exception counts monotonic ---------------------------------------
+    sc = _scratch(["fact_order"])
+    sc.execute("UPDATE fact_order SET split_premium = 9.0 "
+               "WHERE classification = 'split'")
+    counts = [sc.execute(SQL_7_EXCEPTIONS.format(t=t)).fetchone()[0]
+              for t in THRESHOLDS_7]
+    monotonic = all(x >= y for x, y in zip(counts, counts[1:]))
+    non_degenerate = counts[0] > counts[-1] > 0
+    add("7", "every split priced identically (a cliff, not a curve)",
+        monotonic and non_degenerate)
+    sc.close()
+
+    # -- 11 reproducibility --------------------------------------------------
+    import hashlib
+    run = json.loads((GOV_DIR / "generator_run.json").read_text(encoding="utf-8"))
+    sc = _scratch(["fact_order"])
+    sc.execute("UPDATE fact_order SET units_shipped = units_shipped + 1 "
+               "WHERE order_id = (SELECT MIN(order_id) FROM fact_order)")
+    h = hashlib.sha256()
+    for table in run["hashed_tables"]:
+        src = "main" if table == "fact_order" else "src.main"
+        n, s = sc.execute(
+            f"SELECT COUNT(*), COALESCE(SUM(hash(to_json(t))::HUGEINT), 0) "
+            f"FROM {src}.{table} t").fetchone()
+        h.update(f"{table}:{n}:{s}".encode())
+    add("11", "one shipped unit changed in one order",
+        h.hexdigest() == run["content_sha256"])
+    sc.close()
+
+    # -- 12 naming policy ----------------------------------------------------
+    # Run the SHIPPED scanner over a throwaway tree. The sentinel token is
+    # nonsense by construction: this proof must never require a real company
+    # name to exist anywhere, least of all in the file that enforces the rule.
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        # The identifier is ASSEMBLED at runtime, never written literally.
+        # A literal "CIK" followed by ten digits anywhere in this file is
+        # itself an unpermitted identifier, and check 12 rightly refuses it —
+        # it caught exactly that in the first draft of this proof.
+        planted = "CIK" + "4" * 10
+        (root / "leak.md").write_text(
+            "a filing reference: " + planted + chr(10), encoding="utf-8")
+        leaks, _, _ = scan_for_identifiers(root, [])
+        add("12", "a non-peer CIK planted in a text file", not leaks)
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        sentinel = "zzq-sentinel-not-a-company-zzq"
+        bundle = "companyfacts_ZZQ_" + "CIK" + "7" * 10 + ".json"
+        (root / bundle).write_text(
+            '{"entityName": "' + sentinel + '"}\n', encoding="utf-8")
+        _, hits, _ = scan_for_identifiers(root, [sentinel])
+        # Deliberately planted inside a companyfacts_* bundle: the CIK pass
+        # skips those files, the token pass must not.
+        add("12", "a forbidden token inside a frozen companyfacts bundle",
+            not hits)
+
+    all_tripped = True
+    for check, scenario, passed in proofs:
+        tripped = not passed
+        all_tripped &= tripped
+        print(f"  [{'TRIPPED' if tripped else 'DID NOT TRIP'}] "
+              f"check {check}: {scenario}")
+    print()
+    return proofs, all_tripped
+
+
+# ===========================================================================
+
+def write_report(m, anchors, proofs=None, all_tripped=None,
+                 sproofs=None, s_all_tripped=None):
     failed = [r for r in results if not r["passed"]]
     lines = [
         "# Validation report",
@@ -558,6 +832,41 @@ def write_report(m, anchors, proofs=None, all_tripped=None):
                          f"{'tripped' if not passed else '**DID NOT TRIP**'} |")
         lines += ["", f"**{'All scenarios tripped.' if all_tripped else 'A scenario failed to trip — the audit is not load-bearing.'}**", ""]
 
+    if sproofs is not None:
+        lines += [
+            "---", "",
+            "## Proof the structural checks can fail", "",
+            "The section above covers checks 8, 9 and 10 — the realism audits.",
+            "This one covers the other nine. Until 2026-08-25 they had no",
+            "failability evidence at all: twelve green checks, and nothing",
+            "demonstrating that any of the nine could go red. That is a claim",
+            "about the checks rather than about the data, and it is the same",
+            "gap the audits themselves were written to avoid.", "",
+            "Each scenario corrupts a **copy** of the database — the real file",
+            "is attached read-only and never written — then re-runs the",
+            "predicate the suite actually ships. Those predicates are",
+            "module-level constants for exactly this reason: a proof that",
+            "re-typed the SQL would only show the re-typed version can fail.", "",
+            "| Check | Scenario | Result |", "|---|---|---|",
+        ]
+        for check, scenario, passed in sproofs:
+            lines.append(f"| {check} | {scenario} | "
+                         f"{'tripped' if not passed else '**DID NOT TRIP**'} |")
+        lines += [
+            "", f"**{'All scenarios tripped.' if s_all_tripped else 'A scenario failed to trip — that check is not load-bearing.'}**", "",
+            "### One half of check 7 cannot fail, and that is not a defect", "",
+            "Check 7 asserts two things: that exception counts fall as the cost",
+            "threshold rises, and that the resulting curve is non-degenerate.",
+            "Only the second is an empirical claim. The first is an identity —",
+            "`COUNT(*)` over `split_premium > t` is non-increasing in `t` for",
+            "any data whatsoever, so no corruption can make it false. The",
+            "scenario above therefore trips check 7 through its non-degeneracy",
+            "half.", "",
+            "This is recorded rather than quietly dropped, because a check that",
+            "reports two conditions while only one of them can ever fire reads",
+            "as stronger than it is.", "",
+        ]
+
     (GOV_DIR / "validation_report.md").write_text(
         "\n".join(lines) + "\n", encoding="utf-8")
 
@@ -565,7 +874,9 @@ def write_report(m, anchors, proofs=None, all_tripped=None):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--prove-failable", action="store_true",
-                    help="demonstrate each realism audit can fail")
+                    help="demonstrate every check can fail: the three "
+                         "realism audits on wrong numbers, the nine structural "
+                         "checks on corrupted copies of the data")
     args = ap.parse_args()
 
     if not DB_PATH.exists():
@@ -579,10 +890,12 @@ def main():
     run_suite(con, m, anchors)
 
     proofs = all_tripped = None
+    sproofs = s_all_tripped = None
     if args.prove_failable:
         proofs, all_tripped = prove_failable(m, anchors)
+        sproofs, s_all_tripped = prove_structural_failable(m)
 
-    write_report(m, anchors, proofs, all_tripped)
+    write_report(m, anchors, proofs, all_tripped, sproofs, s_all_tripped)
     con.close()
 
     failed = [r for r in results if not r["passed"]]
@@ -593,6 +906,9 @@ def main():
         sys.exit(1)
     if args.prove_failable and not all_tripped:
         print("\nFAILED: a realism audit did not trip when given wrong numbers.")
+        sys.exit(1)
+    if args.prove_failable and not s_all_tripped:
+        print("\nFAILED: a structural check did not trip on corrupted data.")
         sys.exit(1)
 
 

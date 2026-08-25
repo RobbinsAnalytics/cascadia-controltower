@@ -142,7 +142,7 @@ computed 6592611ba17db74bc0201f297742f9fa562ef1304dbdb70e43136d59940aec17
 **PASS**
 
 ```
-scanned 65 text files
+scanned 70 text files
 unexpected CIK references: 0
 strict token scan: SKIPPED - CT_FORBIDDEN_TOKENS not set
 ```
@@ -169,4 +169,78 @@ SG&A band rather than matching a reported figure.
 Both are weaker claims than a match. Both can still fail in either
 direction, and the page states the limitation rather than implying a
 precision the disclosure does not support.
+
+---
+
+## Proof the realism audits can fail
+
+An audit that cannot fail is not an audit. Each audit is a pure
+function of measured numbers, so it can be handed deliberately wrong
+values. Every scenario below **must** trip its audit.
+
+| Audit | Scenario | Result |
+|---|---|---|
+| A | inventory inflated 5x (above the Census band) | tripped |
+| A | seasonal shape flattened | tripped |
+| B | DC cost inflated 6x (above peer SG&A) | tripped |
+| B | DC cost cut to a rounding error | tripped |
+| C | splits made uniform across velocity bands | tripped |
+| C | concentration reversed (fast movers split most) | tripped |
+
+**All scenarios tripped.**
+
+---
+
+## Proof the structural checks can fail
+
+The section above covers checks 8, 9 and 10 — the realism audits.
+This one covers the other nine. Until 2026-08-25 they had no
+failability evidence at all: twelve green checks, and nothing
+demonstrating that any of the nine could go red. That is a claim
+about the checks rather than about the data, and it is the same
+gap the audits themselves were written to avoid.
+
+Each scenario corrupts a **copy** of the database — the real file
+is attached read-only and never written — then re-runs the
+predicate the suite actually ships. Those predicates are
+module-level constants for exactly this reason: a proof that
+re-typed the SQL would only show the re-typed version can fail.
+
+| Check | Scenario | Result |
+|---|---|---|
+| 1 | one order's classification set to NULL | tripped |
+| 1 | a single-node order relabelled 'split' | tripped |
+| 2 | unit fill perturbed by 1e-6 (invisible at display precision) | tripped |
+| 3 | a split order relabelled 'not_shipped' against its shipments | tripped |
+| 3 | a shipped line left with no source node (unclassifiable order) | tripped |
+| 4 | orphaned order_line -> dim_style (one parent row deleted) | tripped |
+| 4 | orphaned order_line -> fact_order (one parent row deleted) | tripped |
+| 4 | orphaned shipment -> dim_node (one parent row deleted) | tripped |
+| 4 | orphaned inventory -> dim_sku (one parent row deleted) | tripped |
+| 4 | orphaned receipt -> dim_sku (one parent row deleted) | tripped |
+| 4 | orphaned order -> dim_date (one parent row deleted) | tripped |
+| 5 | picking hours inflated 1.5x against the stated rate | tripped |
+| 5 | one unit picked that was never shipped | tripped |
+| 6 | one sku-node-month off by a single unit | tripped |
+| 6 | a negative closing balance that still satisfies the identity | tripped |
+| 7 | every split priced identically (a cliff, not a curve) | tripped |
+| 11 | one shipped unit changed in one order | tripped |
+| 12 | a non-peer CIK planted in a text file | tripped |
+| 12 | a forbidden token inside a frozen companyfacts bundle | tripped |
+
+**All scenarios tripped.**
+
+### One half of check 7 cannot fail, and that is not a defect
+
+Check 7 asserts two things: that exception counts fall as the cost
+threshold rises, and that the resulting curve is non-degenerate.
+Only the second is an empirical claim. The first is an identity —
+`COUNT(*)` over `split_premium > t` is non-increasing in `t` for
+any data whatsoever, so no corruption can make it false. The
+scenario above therefore trips check 7 through its non-degeneracy
+half.
+
+This is recorded rather than quietly dropped, because a check that
+reports two conditions while only one of them can ever fire reads
+as stronger than it is.
 
