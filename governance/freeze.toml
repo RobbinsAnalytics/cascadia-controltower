@@ -1,0 +1,113 @@
+# Cascadia Control Tower — the freeze, as data.
+#
+# Read by src/validate_freeze.py (cascadia-standards template v1.0.0, copied
+# verbatim — never edit that script here). This file is the authoritative
+# "do not touch" list.
+#
+# Created 2026-08-25. Until then this module had NO freeze gate at all — not a
+# stale one, none — while CLAUDE.md's "pull once, freeze, commit" principle was
+# stated as though something enforced it. This file is what makes that sentence
+# checkable.
+
+[freeze]
+module = "cascadia-controltower"
+
+# The three real anchors were pulled on this date and have not been re-pulled.
+# It is stamped on the published page (docs/index.html: "frozen 2026-08-08") and
+# recorded in data/raw/manifest.json as retrieval_date. Both agree; advancing it
+# is a deliberate decision, never a side effect of a build.
+as_of_date = "2026-08-08"
+
+# "Unchanged since the last commit." This catches the common failure — a build
+# that mutates the frozen snapshot mid-run.
+#
+# The stronger setting is the SHA of the freeze commit itself, which would
+# verify the as-of claim across the repo's whole history rather than only since
+# the last commit. Adopting it requires first identifying that commit and
+# declaring every legitimate post-freeze change below as a permitted_edit.
+# Worth doing deliberately; not worth doing as a side effect of standing the
+# gate up for the first time.
+baseline = "HEAD"
+
+# A pattern matching nothing FAILS the gate — a frozen file that was deleted or
+# renamed is exactly what this exists to catch. Every glob below was verified
+# to match at least one tracked file on 2026-08-25.
+protected_paths = [
+  # ---- The real anchors. These are the bytes every realism audit runs against.
+  # The audits are only reproducible if these never move.
+  "data/raw/manifest.json",
+  "data/raw/company_tickers.json",
+
+  # SEC EDGAR companyfacts for the named benchmark set — Macy's, Kohl's,
+  # Dillard's. Named peers are allowed here; the calibration filer is not, and
+  # is absent from data/raw/ by design (governance/naming_policy.md).
+  "data/raw/companyfacts_*.json",
+
+  # Census MRTS department-store inventories and sales.
+  "data/raw/mrtsinv92-present.xlsx",
+  "data/raw/mrtssales92-present.xlsx",
+
+  # BLS OEWS, SOC 53-7062, Seattle-Tacoma-Bellevue metro.
+  "data/raw/oesm25ma.zip",
+
+  # Derived, unattributed calibration ratios. This file is the ONE place the
+  # calibration filer's published figures touch the repo, and it is protected
+  # for a second reason beyond freeze integrity: it is the file where an
+  # accidental re-derivation could widen what is recorded about an unnamed
+  # source. Any change here is a naming-policy event, not just a data event.
+  "data/raw/calibration_envelope.json",
+
+  # ---- Conformed anchor outputs built from that snapshot.
+  "data/clean/anchor_inventory.csv",
+  "data/clean/anchor_labor.csv",
+  "data/clean/anchor_peers.csv",
+
+  # ---- Published output. What is committed here is what GitHub Pages serves;
+  # pushing main IS the deploy, so an unnoticed edit to any of these is an
+  # unnoticed change to the live page.
+  "docs/index.html",
+  "docs/case-study.qmd",
+  "docs/data/metric_register.json",
+
+  # The stylesheet and the chart code. Not pages, but the page renders through
+  # them — a single edit here changes published output by a route the gate
+  # would otherwise not see. controltower-charts.js also carries the
+  # hand-written Rule 2.3.7 INK map, which is the module's one by-hand
+  # accessibility correction and must not be lost to a careless rewrite.
+  "docs/assets/cascadia-controltower.css",
+  "docs/assets/controltower-charts.js",
+
+  # The vendored ECharts theme. Measured 2026-08-25 as two minor versions
+  # behind canonical (v2.1 vendored here against v2.6 in cascadia-standards).
+  # It is protected rather than updated ON PURPOSE: updating it would change
+  # published chart rendering, and drift DETECTION is assigned elsewhere. Being
+  # in this list means a future update is a gate event someone has to mean.
+  "docs/assets/cascadia-echarts-theme.js",
+]
+
+# NOT protected, and each for a stated reason — absence from this list is a
+# decision, not an oversight:
+#
+#   data/clean/controltower.duckdb
+#       The synthetic spine. Guarded by a STRONGER, content-based check:
+#       governance/generator_run.json pins seed 20260808 and a content_sha256
+#       over all eleven generated tables. A DuckDB file is not guaranteed
+#       byte-stable across writes, so a byte-comparison gate here would fail on
+#       reruns that produced identical DATA — a failure about nothing, which is
+#       how gates get switched off.
+#
+#   docs/assets/echarts.min.js
+#       Vendored third-party library. Its integrity question is "which version
+#       is this", which a byte-diff against HEAD does not answer.
+#
+#   docs/assets/brand/*, docs/assets/og-controltower.png
+#       Static brand assets. Nothing derives from the frozen data.
+
+# Paths that are protected but are allowed to differ from the baseline, each
+# with a stated reason. Exemptions print in the report on every run, so an
+# exception is visible rather than silent. There are none: this gate is being
+# stood up on an unmodified tree, which is the cleanest moment to do it.
+#
+# [[permitted_edit]]
+# path = "docs/index.html"
+# reason = "..."
