@@ -25,7 +25,8 @@ PAGE = """<!DOCTYPE html>
      keep one source of truth but leave this page's card and tab icon silently
      dependent on files another repository can rename. A module that serves
      itself should serve all of itself. The cost is a copy that can drift, so
-     if build_thumbs.py is re-run for this slug, re-copy the output. -->
+     if build_thumbs.py is re-run for this slug, re-copy the output.
+
      Icons are relative — the browser resolves them against this page. The
      card URL must be absolute: a scraper is not a browser and does not
      resolve relative paths. -->
@@ -56,7 +57,7 @@ PAGE = """<!DOCTYPE html>
 <div class="wrap">
 
 <header class="site-head">
-  <p class="kicker">Cascadia Portfolio · Module 07 · Distribution-centre governance</p>
+  <p class="kicker"><a href="https://www.robbinsanalytics.com/">Cascadia Portfolio</a> · <a href="https://www.robbinsanalytics.com/projects/cascadia-controltower.html">Control Tower case study</a></p>
   <h1>Three fill rates, one dataset, and the cost hiding between them</h1>
   <p class="standfirst">A distribution centre reports 94% to Operations, 92% to the
   merchant team and 87% to Finance. All three are arithmetically correct. The thing

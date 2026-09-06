@@ -70,6 +70,8 @@ a:hover { text-decoration-thickness: 2px; }
   font-size: 12px; letter-spacing: 0.13em; text-transform: uppercase;
   color: var(--slate); margin: 0 0 8px;
 }
+.kicker a { color: var(--slate); text-decoration: none; }
+.kicker a:hover, .kicker a:focus-visible { text-decoration: underline; }
 h1 {
   font-family: var(--serif);
   font-size: clamp(26px, 5vw, 38px);
