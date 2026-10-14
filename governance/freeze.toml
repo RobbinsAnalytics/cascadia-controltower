@@ -1,7 +1,7 @@
 # Cascadia Control Tower — the freeze, as data.
 #
-# Read by src/validate_freeze.py (cascadia-standards template v1.0.0, copied
-# verbatim — never edit that script here). This file is the authoritative
+# Read by src/validate_freeze.py (copied verbatim from cascadia-standards; it
+# prints its own template version — never edit that script here). This file is the authoritative
 # "do not touch" list.
 #
 # Created 2026-08-25. Until then this module had NO freeze gate at all — not a
